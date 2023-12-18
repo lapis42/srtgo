@@ -47,7 +47,7 @@ def srtgo():
             [
                 inquirer.Confirm(
                     "confirm",
-                    "텔레그램 token과 chat_id가 있습니까 (https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0 참고)",
+                    message="텔레그램 token과 chat_id가 있습니까 (https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0 참고)",
                 )
             ]
         )
