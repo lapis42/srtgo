@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "srtgo"
+authors = [
+    {name = "Dohoung Kim", email = "lapis42@gmail.com"},
+]
+description = "SRT python scheduler"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "BSD-3-Clause"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "requests",
+]
+dynamic = ["version"]
+
+[project.scripts]
+srtgo = "srtgo.srtgo:srtgo"
