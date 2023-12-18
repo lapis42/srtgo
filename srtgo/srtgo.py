@@ -118,7 +118,8 @@ def srtgo():
     info = inquirer.prompt(q_info)
 
     if info["departure"] == info["arrival"]:
-        raise ValueError("출발역과 도착역이 같습니다")
+        print(colored("출발역과 도착역이 같습니다"), "red")
+        return
 
     # choose trains
     trains = srt.search_train(
@@ -130,7 +131,8 @@ def srtgo():
     )
 
     if len(trains) == 0:
-        raise ValueError("예약 가능한 열차가 없습니다")
+        print(colored("예약 가능한 열차가 없습니다", "red"))
+        return
 
     q_choice = [
         inquirer.Checkbox(
