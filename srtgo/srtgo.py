@@ -151,6 +151,9 @@ def srtgo():
         ),
     ]
     choice = inquirer.prompt(q_choice)
+    if len(choice["trains"]) == 0:
+        print(colored("선택한 열차가 없습니다!", "red"))
+        return
 
     # start searching
     while True:
