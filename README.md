@@ -6,6 +6,7 @@
 git clone https://github.com/lapis42/srtgo
 cd srtgo
 pip install .
+pip install --upgrade -r requirements.txt
 ```
 
 ## Start
