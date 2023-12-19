@@ -1,9 +1,3 @@
-# %pip install SRTrain
-# %pip install prompt-toolkit -U
-# %pip install inquirer
-# %pip install python-telegram-bot --upgrade --pre
-# %pip install termcolor
-
 import click
 import inquirer
 import keyring
@@ -14,6 +8,8 @@ from termcolor import colored
 from datetime import datetime, timedelta
 from SRT import SRT
 from SRT.seat_type import SeatType
+from korail2 import Korail
+from korail2 import AdultPassenger, ReserveOption
 
 
 @click.command()
@@ -24,10 +20,12 @@ def srtgo():
                 "menu",
                 message="메뉴 선택 (↕:이동, Enter: 완료)",
                 choices=[
-                    ("예약 시작", 1),
-                    ("로그인 설정", 2),
-                    ("텔레그램 설정", 3),
-                    ("나가기", 4),
+                    ("SRT 예매 시작", 1),
+                    ("KTX 예매 시작", 2),
+                    ("SRT 로그인 설정", 3),
+                    ("KTX 로그인 설정", 4),
+                    ("텔레그램 설정", 5),
+                    ("나가기", 6),
                 ],
             )
         ]
@@ -37,10 +35,14 @@ def srtgo():
             return
 
         if choice["menu"] == 1:
-            reserve()
+            reserve("SRT")
         elif choice["menu"] == 2:
-            set_login()
+            reserve("KTX")
         elif choice["menu"] == 3:
+            set_login("SRT")
+        elif choice["menu"] == 4:
+            set_login("KTX")
+        elif choice["menu"] == 5:
             set_telegram()
         else:
             return
@@ -80,7 +82,7 @@ def set_telegram():
             await bot.send_message(chat_id=chat_id, text=text)
 
     try:
-        asyncio.run(tgprintf("[SRT] 텔레그램 설정 완료"))
+        asyncio.run(tgprintf("[SRTGO] 텔레그램 설정 완료"))
         keyring.set_password("telegram", "ok", "1")
         keyring.set_password("telegram", "token", token)
         keyring.set_password("telegram", "chat_id", chat_id)
@@ -108,19 +110,21 @@ def get_telegram():
     return tgprintf
 
 
-def set_login():
-    if keyring.get_password("SRT", "ok") is not None:
-        id = keyring.get_password("SRT", "id")
-        password = keyring.get_password("SRT", "pass")
+def set_login(rail_type="SRT"):
+    if keyring.get_password(rail_type, "ok") is not None:
+        id = keyring.get_password(rail_type, "id")
+        password = keyring.get_password(rail_type, "pass")
     else:
         id = ""
         password = ""
 
     q_login = [
         inquirer.Text(
-            "id", message="SRT 계정 아이디 (멤버십 번호, 이메일, 전화번호)", default=id
+            "id",
+            message=rail_type + " 계정 아이디 (멤버십 번호, 이메일, 전화번호)",
+            default=id,
         ),
-        inquirer.Text("pass", message="SRT 계정 패스워드", default=password),
+        inquirer.Text("pass", message=rail_type + " 계정 패스워드", default=password),
     ]
     login = inquirer.prompt(q_login)
 
@@ -131,59 +135,74 @@ def set_login():
     password = login["pass"]
 
     if id and password:
-        keyring.set_password("SRT", "id", id)
-        keyring.set_password("SRT", "pass", password)
+        keyring.set_password(rail_type, "id", id)
+        keyring.set_password(rail_type, "pass", password)
     else:
         return False
 
     try:
-        SRT(id, password)
-        keyring.set_password("SRT", "ok", "1")
+        if rail_type == "SRT":
+            SRT(id, password)
+        else:
+            Korail(id, password)
+        keyring.set_password(rail_type, "ok", "1")
         return True
     except Exception as err:
         print(err)
-        keyring.delete_password("SRT", "ok")
+        keyring.delete_password(rail_type, "ok")
         return False
 
 
-def login():
+def login(rail_type="SRT"):
     # login
-    if keyring.get_password("SRT", "ok") is None:
-        set_login()
+    if keyring.get_password(rail_type, "ok") is None:
+        set_login(rail_type)
 
-    id = keyring.get_password("SRT", "id")
-    password = keyring.get_password("SRT", "pass")
-    return SRT(id, password)
+    id = keyring.get_password(rail_type, "id")
+    password = keyring.get_password(rail_type, "pass")
+    if rail_type == "SRT":
+        return SRT(id, password)
+    else:
+        return Korail(id, password)
 
 
-def reserve():
-    srt = login()
+def reserve(rail_type="SRT"):
+    rail = login(rail_type)
 
     # 출발역 / 도착역 / 날짜 / 시각 선택
-    default_departure = keyring.get_password("SRT", "departure")
+    default_departure = keyring.get_password(rail_type, "departure")
     if default_departure is None:
-        default_departure = "수서"
-    default_arrival = keyring.get_password("SRT", "arrival")
+        if rail_type == "SRT":
+            default_departure = "수서"
+        else:
+            default_departure = "서울"
+
+    default_arrival = keyring.get_password(rail_type, "arrival")
     if default_arrival is None:
         default_arrival = "동대구"
-    default_date = keyring.get_password("SRT", "date")
+    default_date = keyring.get_password(rail_type, "date")
     if default_date is None:
-        default_date = "20230101"
-    default_time = keyring.get_password("SRT", "time")
+        default_date = datetime.now().strftime("%Y%m%d")
+    default_time = keyring.get_password(rail_type, "time")
     if default_time is None:
         default_time = "120000"
+
+    if rail_type == "SRT":
+        main_station = "수서"
+    else:
+        main_station = "서울"
 
     q_info = [
         inquirer.List(
             "departure",
             message="출발역 선택 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
-            choices=["수서", "오송", "대전", "동대구", "부산", "포항"],
+            choices=[main_station, "오송", "대전", "동대구", "부산", "포항"],
             default=default_departure,
         ),
         inquirer.List(
             "arrival",
             message="도착역 선택 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
-            choices=["수서", "오송", "대전", "동대구", "부산", "포항"],
+            choices=[main_station, "오송", "대전", "동대구", "부산", "포항"],
             default=default_arrival,
         ),
         inquirer.List(
@@ -218,6 +237,14 @@ def reserve():
             default=default_time,
         ),
     ]
+    if rail_type == "KTX":
+        q_info.append(
+            inquirer.List(
+                "passenger",
+                message="승객수 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
+                choices=list(range(1, 10)),
+            )
+        )
     info = inquirer.prompt(q_info)
     if info is None:
         return
@@ -226,23 +253,37 @@ def reserve():
         print(colored("출발역과 도착역이 같습니다"), "red")
         return
 
-    keyring.set_password("SRT", "departure", info["departure"])
-    keyring.set_password("SRT", "arrival", info["arrival"])
-    keyring.set_password("SRT", "date", info["date"])
-    keyring.set_password("SRT", "time", info["time"])
+    keyring.set_password(rail_type, "departure", info["departure"])
+    keyring.set_password(rail_type, "arrival", info["arrival"])
+    keyring.set_password(rail_type, "date", info["date"])
+    keyring.set_password(rail_type, "time", info["time"])
 
     # choose trains
-    trains = srt.search_train(
-        info["departure"],
-        info["arrival"],
-        info["date"],
-        info["time"],
-        available_only=False,
-    )
+    if rail_type == "SRT":
+        trains = rail.search_train(
+            info["departure"],
+            info["arrival"],
+            info["date"],
+            info["time"],
+            available_only=False,
+        )
+    else:
+        trains = rail.search_train(
+            info["departure"],
+            info["arrival"],
+            info["date"],
+            info["time"],
+            passengers=[AdultPassenger(info["passenger"])],
+            include_no_seats=True,
+        )
 
     if len(trains) == 0:
         print(colored("예약 가능한 열차가 없습니다", "red"))
         return
+    if rail_type == "SRT":
+        seat_type = SeatType
+    else:
+        seat_type = ReserveOption
 
     q_choice = [
         inquirer.Checkbox(
@@ -255,10 +296,10 @@ def reserve():
             "type",
             message="선택 유형 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
             choices=[
-                ("일반실 우선", SeatType.GENERAL_FIRST),
-                ("일반실만", SeatType.GENERAL_ONLY),
-                ("특실 우선", SeatType.SPECIAL_FIRST),
-                ("특실만", SeatType.SPECIAL_ONLY),
+                ("일반실 우선", seat_type.GENERAL_FIRST),
+                ("일반실만", seat_type.GENERAL_ONLY),
+                ("특실 우선", seat_type.SPECIAL_FIRST),
+                ("특실만", seat_type.SPECIAL_ONLY),
             ],
         ),
     ]
@@ -275,13 +316,23 @@ def reserve():
     # start searching
     while True:
         try:
-            trains = srt.search_train(
-                info["departure"],
-                info["arrival"],
-                info["date"],
-                info["time"],
-                available_only=False,
-            )
+            if rail_type == "SRT":
+                trains = rail.search_train(
+                    info["departure"],
+                    info["arrival"],
+                    info["date"],
+                    info["time"],
+                    available_only=False,
+                )
+            else:
+                trains = rail.search_train(
+                    info["departure"],
+                    info["arrival"],
+                    info["date"],
+                    info["time"],
+                    passengers=[AdultPassenger(info["passenger"])],
+                    include_no_seats=True,
+                )
 
             for i, train in enumerate(trains):
                 if i in choice["trains"]:
@@ -291,19 +342,35 @@ def reserve():
                     if (
                         (
                             choice["type"]
-                            in [SeatType.GENERAL_FIRST, SeatType.SPECIAL_FIRST]
-                            and train.seat_available()
+                            in [seat_type.GENERAL_FIRST, seat_type.SPECIAL_FIRST]
+                            and (
+                                (rail_type == "SRT" and train.seat_available())
+                                or (rail_type == "KTX" and train.has_seat())
+                            )
                         )
                         or (
-                            choice["type"] == SeatType.GENERAL_ONLY
-                            and train.general_seat_available()
+                            choice["type"] == seat_type.GENERAL_ONLY
+                            and (
+                                (rail_type == "SRT" and train.general_seat_available())
+                                or (rail_type == "KTX" and train.has_general_seat())
+                            )
                         )
                         or (
-                            choice["type"] == SeatType.SPECIAL_ONLY
-                            and train.special_seat_available()
+                            choice["type"] == seat_type.SPECIAL_ONLY
+                            and (
+                                (rail_type == "SRT" and train.special_seat_available())
+                                or (rail_type == "KTX" and train.has_special_seat())
+                            )
                         )
                     ):
-                        reserve = srt.reserve(train, special_seat=choice["type"])
+                        if rail_type == "SRT":
+                            reserve = rail.reserve(train, special_seat=choice["type"])
+                        else:
+                            reserve = rail.reserve(
+                                train,
+                                [AdultPassenger(info["passenger"])],
+                                choice["type"],
+                            )
                         print(
                             colored(
                                 "\n\n🎊예매 성공!!!🎊\n" + reserve.__repr__() + "\n\n",
