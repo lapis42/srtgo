@@ -4,6 +4,7 @@ import keyring
 import time
 import telegram
 import asyncio
+from random import random
 from termcolor import colored
 from datetime import datetime, timedelta
 from SRT import SRT
@@ -20,10 +21,10 @@ def srtgo():
                 "menu",
                 message="메뉴 선택 (↕:이동, Enter: 완료)",
                 choices=[
-                    ("SRT 예매 시작", 1),
-                    ("KTX 예매 시작", 2),
-                    ("SRT 로그인 설정", 3),
-                    ("KTX 로그인 설정", 4),
+                    (colored("SRT", "red") + " 예매 시작", 1),
+                    (colored("KTX", "cyan") + " 예매 시작", 2),
+                    (colored("SRT", "red") + " 로그인 설정", 3),
+                    (colored("KTX", "cyan") + " 로그인 설정", 4),
                     ("텔레그램 설정", 5),
                     ("나가기", 6),
                 ],
@@ -250,7 +251,7 @@ def reserve(rail_type="SRT"):
         return
 
     if info["departure"] == info["arrival"]:
-        print(colored("출발역과 도착역이 같습니다"), "red")
+        print(colored("출발역과 도착역이 같습니다", "green", "on_red"))
         return
 
     keyring.set_password(rail_type, "departure", info["departure"])
@@ -278,7 +279,7 @@ def reserve(rail_type="SRT"):
         )
 
     if len(trains) == 0:
-        print(colored("예약 가능한 열차가 없습니다", "red"))
+        print(colored("예약 가능한 열차가 없습니다", "green", "on_red"))
         return
     if rail_type == "SRT":
         seat_type = SeatType
@@ -308,7 +309,7 @@ def reserve(rail_type="SRT"):
         return
 
     if len(choice["trains"]) == 0:
-        print(colored("선택한 열차가 없습니다!", "red"))
+        print(colored("선택한 열차가 없습니다!", "green", "on_red"))
         return
 
     tgprintf = get_telegram()
@@ -316,6 +317,9 @@ def reserve(rail_type="SRT"):
     # start searching
     while True:
         try:
+            # print(datetime.now().strftime("%H:%M:%S"))
+            print(".", end="", flush=True)
+
             if rail_type == "SRT":
                 trains = rail.search_train(
                     info["departure"],
@@ -336,7 +340,7 @@ def reserve(rail_type="SRT"):
 
             for i, train in enumerate(trains):
                 if i in choice["trains"]:
-                    print(train)
+                    # print(train)
 
                     # check seat availablity
                     if (
@@ -373,15 +377,17 @@ def reserve(rail_type="SRT"):
                             )
                         print(
                             colored(
-                                "\n\n🎊예매 성공!!!🎊\n" + reserve.__repr__() + "\n\n",
-                                "green",
+                                "\n\n\n🎊예매 성공!!!🎊\n"
+                                + reserve.__repr__()
+                                + "\n\n",
+                                "red",
+                                "on_green",
                             )
                         )
                         asyncio.run(tgprintf(reserve.__repr__()))
                         return
 
-            print()
-            time.sleep(2)
+            time.sleep(1 + 2 * random())
 
         except Exception as ex:
             print(ex)

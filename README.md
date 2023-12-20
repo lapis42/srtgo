@@ -1,4 +1,12 @@
-# SRT scheduler
+# SRT and KTX scheduler
+
+- This module is designed to automate the reservation of SRT and KTX train tickets.
+- Through the keyring module, the information such as username, password, departure station, and arrival station is stored on the local computer.
+- After the reservation is completed, a Telegram notification will be sent.
+
+  - Check [Bot Token 및 Chat Id 얻기](https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0).
+
+- Currently, only one SRT ticket can be obtained per transaction.
 
 ## Installation
 
@@ -6,7 +14,6 @@
 git clone https://github.com/lapis42/srtgo
 cd srtgo
 pip install .
-pip install --upgrade -r requirements.txt
 ```
 
 ## Start

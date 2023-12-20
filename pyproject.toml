@@ -5,9 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "srtgo"
 authors = [
-    {name = "Dohoung Kim", email = "lapis42@gmail.com"},
+    {name = "DKim", email = "lapis42@gmail.com"},
 ]
-description = "SRT python scheduler"
+description = "SRT and KTX python scheduler"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT License"}
@@ -15,7 +15,14 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "requests",
+    "SRTrain",
+    "korail2 @ git+https://github.com/carpedm20/korail2",
+    "prompt_toolkit >=3",
+    "inquirer",
+    "python-telegram-bot",
+    "termcolor",
+    "click",
+    "keyring",
 ]
 dynamic = ["version"]
 

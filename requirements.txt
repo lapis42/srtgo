@@ -1,7 +1,0 @@
-SRTrain == 2.3.0
-korail2 @ git+https://github.com/carpedm20/korail2
-prompt_toolkit==3.0.43
-inquirer==3.1.4
-python-telegram-bot==20.7
-termcolor==2.4.0
-click==8.0.4
