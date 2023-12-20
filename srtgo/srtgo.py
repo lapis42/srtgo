@@ -23,10 +23,12 @@ def srtgo():
                 choices=[
                     (colored("SRT", "red") + " 예매 시작", 1),
                     (colored("KTX", "cyan") + " 예매 시작", 2),
-                    (colored("SRT", "red") + " 로그인 설정", 3),
-                    (colored("KTX", "cyan") + " 로그인 설정", 4),
-                    ("텔레그램 설정", 5),
-                    ("나가기", 6),
+                    (colored("SRT", "red") + " 예매 확인/취소", 3),
+                    (colored("KTX", "cyan") + " 예매 확인/취소", 4),
+                    (colored("SRT", "red") + " 로그인 설정", 5),
+                    (colored("KTX", "cyan") + " 로그인 설정", 6),
+                    ("텔레그램 설정", 7),
+                    ("나가기", 8),
                 ],
             )
         ]
@@ -40,10 +42,14 @@ def srtgo():
         elif choice["menu"] == 2:
             reserve("KTX")
         elif choice["menu"] == 3:
-            set_login("SRT")
+            check_reservation("SRT")
         elif choice["menu"] == 4:
-            set_login("KTX")
+            check_reservation("KTX")
         elif choice["menu"] == 5:
+            set_login("SRT")
+        elif choice["menu"] == 6:
+            set_login("KTX")
+        elif choice["menu"] == 7:
             set_telegram()
         else:
             return
@@ -178,12 +184,16 @@ def reserve(rail_type="SRT"):
         else:
             default_departure = "서울"
 
+    now = datetime.now() + timedelta(minutes=10)
+    today = now.strftime("%Y%m%d")
+    this_time = now.strftime("%H%M%S")
+
     default_arrival = keyring.get_password(rail_type, "arrival")
     if default_arrival is None:
         default_arrival = "동대구"
     default_date = keyring.get_password(rail_type, "date")
     if default_date is None:
-        default_date = datetime.now().strftime("%Y%m%d")
+        default_date = today
     default_time = keyring.get_password(rail_type, "time")
     if default_time is None:
         default_time = "120000"
@@ -211,8 +221,8 @@ def reserve(rail_type="SRT"):
             message="출발 날짜 선택 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
             choices=[
                 (
-                    (datetime.now() + timedelta(days=i)).strftime("%Y/%m/%d %a"),
-                    (datetime.now() + timedelta(days=i)).strftime("%Y%m%d"),
+                    (now + timedelta(days=i)).strftime("%Y/%m/%d %a"),
+                    (now + timedelta(days=i)).strftime("%Y%m%d"),
                 )
                 for i in range(28)
             ],
@@ -251,13 +261,16 @@ def reserve(rail_type="SRT"):
         return
 
     if info["departure"] == info["arrival"]:
-        print(colored("출발역과 도착역이 같습니다", "green", "on_red"))
+        print(colored("출발역과 도착역이 같습니다", "green", "on_red") + "\n")
         return
 
     keyring.set_password(rail_type, "departure", info["departure"])
     keyring.set_password(rail_type, "arrival", info["arrival"])
     keyring.set_password(rail_type, "date", info["date"])
     keyring.set_password(rail_type, "time", info["time"])
+
+    if info["date"] == today and int(info["time"]) < int(this_time):
+        info["time"] = this_time
 
     # choose trains
     if rail_type == "SRT":
@@ -279,7 +292,7 @@ def reserve(rail_type="SRT"):
         )
 
     if len(trains) == 0:
-        print(colored("예약 가능한 열차가 없습니다", "green", "on_red"))
+        print(colored("예약 가능한 열차가 없습니다", "green", "on_red") + "\n")
         return
     if rail_type == "SRT":
         seat_type = SeatType
@@ -309,7 +322,7 @@ def reserve(rail_type="SRT"):
         return
 
     if len(choice["trains"]) == 0:
-        print(colored("선택한 열차가 없습니다!", "green", "on_red"))
+        print(colored("선택한 열차가 없습니다!", "green", "on_red") + "\n")
         return
 
     tgprintf = get_telegram()
@@ -379,6 +392,8 @@ def reserve(rail_type="SRT"):
                             colored(
                                 "\n\n\n🎊예매 성공!!!🎊\n"
                                 + reserve.__repr__()
+                                + "\n"
+                                + reserve.tickets.__repr__()
                                 + "\n\n",
                                 "red",
                                 "on_green",
@@ -397,6 +412,52 @@ def reserve(rail_type="SRT"):
             )
 
             if not answer["continue"]:
+                return
+
+
+def check_reservation(rail_type="SRT"):
+    rail = login(rail_type)
+
+    while True:
+        if rail_type == "SRT":
+            reservations = rail.get_reservations()
+        else:
+            reservations = rail.reservations()
+
+        if len(reservations) == 0:
+            print(colored("예약 내역이 없습니다", "green", "on_red") + "\n")
+            return
+
+        cancel_choices = [
+            (reservation.__repr__(), i) for i, reservation in enumerate(reservations)
+        ]
+        cancel_choices.insert(0, ("돌아가기", -1))
+        q_cancel = [
+            inquirer.List(
+                "cancel",
+                message="예약 취소 (Enter: 결정)",
+                choices=cancel_choices,
+            )
+        ]
+        cancel = inquirer.prompt(q_cancel)
+
+        if cancel is None or cancel["cancel"] == -1:
+            return
+
+        answer = inquirer.prompt(
+            [
+                inquirer.Confirm(
+                    "continue",
+                    message=colored("정말 취소하시겠습니까", "green", "on_red"),
+                )
+            ],
+        )
+
+        if answer["continue"]:
+            try:
+                rail.cancel(reservations[cancel["cancel"]])
+            except Exception as err:
+                print(err)
                 return
 
 
