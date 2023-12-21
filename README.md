@@ -1,11 +1,8 @@
-# SRT and KTX scheduler
-
+# SRTgo: K-Train Reservation Helper
+SRTgo is:
 - This module is designed to automate the reservation of SRT and KTX train tickets.
 - Through the keyring module, the information such as username, password, departure station, and arrival station is stored on the local computer.
 - After the reservation is completed, a Telegram notification will be sent.
-
-  - Check [Bot Token 및 Chat Id 얻기](https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0).
-
 - Currently, only one SRT ticket can be obtained per transaction.
 - In the case of reservation confirmation/cancellation, for SRT, all tickets can be confirmed or canceled, while for KTX, only unpaid tickets can be confirmed or canceled.  
 
@@ -18,15 +15,20 @@
 - SRT는 한 번에 1장만 예매 가능합니다 (KTX는 여러 장 가능).
 - 예매 확인/취소의 경우 SRT는 모든 티켓을, KTX는 결제하지 않은 티켓만 확인 취소 할 수 있습니다.
 
-## Installation (설치)
+## Installation
+- Download and install [Miniconda](https://conda.io/miniconda.html) or [Anaconda](https://www.anaconda.com/download/).
+  - If you prefer a minimalistic installation, choose Miniconda.
+- Open the **Anaconda Prompt (Miniconda)** and type the following commands.
 
 ```bash
+chcp 949 # Windows 터미널 한글 깨짐 현상 해결
+conda install git
 git clone https://github.com/lapis42/srtgo
 cd srtgo
 pip install .
 ```
 
-## Start (실행)
+## Using SRTgo
 
 ```bash
 > srtgo
@@ -134,6 +136,10 @@ pip install .
 
 예약 내역이 없습니다
 ```
+
+## To-Do
+- [ ] Send ticket reservation information via Telegram
+- [ ] Reserve SRT tickets for multiple people
 
 ## Acknowledgment
 
