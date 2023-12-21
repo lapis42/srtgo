@@ -138,7 +138,7 @@ pip install .
 ```
 
 ## To-Do
-- [ ] Send ticket reservation information via Telegram
+- [X] Send ticket reservation information via Telegram
 - [ ] Reserve SRT tickets for multiple people
 
 ## Acknowledgment
