@@ -25,6 +25,7 @@ dependencies = [
     "keyring",
 ]
 dynamic = ["version"]
+[tool.setuptools_scm]
 
 [project.scripts]
 srtgo = "srtgo.srtgo:srtgo"

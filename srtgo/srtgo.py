@@ -428,19 +428,29 @@ def check_reservation(rail_type="SRT"):
     rail = login(rail_type)
 
     while True:
+        out = ""
         if rail_type == "SRT":
             reservations = rail.get_reservations()
+            tickets = []
         else:
             reservations = rail.reservations()
+            tickets = rail.tickets()
 
-        if len(reservations) == 0:
+            if len(tickets):
+                out += "[ 발권 내역 ]\n"
+                for ticket in tickets:
+                    out += ticket.__repr__() + "\n"
+                print(out)
+
+        if len(reservations) == 0 and len(tickets) == 0:
             print(colored("예약 내역이 없습니다", "green", "on_red") + "\n")
             return
 
         cancel_choices = [
             (reservation.__repr__(), i) for i, reservation in enumerate(reservations)
         ]
-        cancel_choices.insert(0, ("돌아가기", -1))
+        cancel_choices.append(("텔레그램으로 예매 정보 전송", -2))
+        cancel_choices.append(("돌아가기", -1))
         q_cancel = [
             inquirer.List(
                 "cancel",
@@ -453,6 +463,28 @@ def check_reservation(rail_type="SRT"):
         if cancel is None or cancel["cancel"] == -1:
             return
 
+        if cancel["cancel"] == -2:
+            if len(out):
+                out += "\n"
+            if len(reservations):
+                out += "[ 예매 내역 ]"
+                if rail_type == "SRT":
+                    for i, reservation in enumerate(reservations):
+                        out += (
+                            "\n▣"
+                            + reservation.__repr__()
+                            + "\n"
+                            + reservation.tickets.__repr__()
+                        )
+                else:
+                    for i, reservation in enumerate(reservations):
+                        out += "\n▣" + reservation.__repr__()
+
+            if len(out):
+                tgprintf = get_telegram()
+                asyncio.run(tgprintf(out))
+            return
+
         answer = inquirer.prompt(
             [
                 inquirer.Confirm(
@@ -461,6 +493,8 @@ def check_reservation(rail_type="SRT"):
                 )
             ],
         )
+        if answer is None:
+            return
 
         if answer["continue"]:
             try:
