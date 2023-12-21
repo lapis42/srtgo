@@ -7,11 +7,13 @@
   - Check [Bot Token 및 Chat Id 얻기](https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0).
 
 - Currently, only one SRT ticket can be obtained per transaction.
-- In the case of reservation confirmation/cancellation, for SRT, all tickets can be confirmed or canceled, while for KTX, only unpaid tickets can be confirmed or canceled.
+- In the case of reservation confirmation/cancellation, for SRT, all tickets can be confirmed or canceled, while for KTX, only unpaid tickets can be confirmed or canceled.  
 
-- SRT 및 KTX 기차표 예매표를 자동화합니다.
+
+- SRT 및 KTX 기차표 예매를 자동화합니다.
 - 아이디, 비번, 예매 설정 등은 로컬 컴퓨터에 저장하며 공유되지 않습니다.
 - 예약이 완료되면 텔레그램 알림을 전송합니다.
+   - [Bot Token 및 Chat Id 얻기](https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0).
 - SRT는 한 번에 1장만 예매 가능합니다 (KTX는 여러 장 가능).
 - 예매 확인/취소의 경우 SRT는 모든 티켓을, KTX는 결제하지 않은 티켓만 확인 취소 할 수 있습니다.
 
