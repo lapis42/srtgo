@@ -1,4 +1,4 @@
-# SRTgo: K-Train Reservation Wrapper
+# SRTgo: K-Train Reservation Helper
 SRTgo is:
 - This module is designed to automate the reservation of SRT and KTX train tickets.
 - Through the keyring module, the information such as username, password, departure station, and arrival station is stored on the local computer.
