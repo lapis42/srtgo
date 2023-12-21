@@ -9,6 +9,7 @@
 - Currently, only one SRT ticket can be obtained per transaction.
 - In the case of reservation confirmation/cancellation, for SRT, all tickets can be confirmed or canceled, while for KTX, only unpaid tickets can be confirmed or canceled.  
 
+---
 
 - SRT 및 KTX 기차표 예매를 자동화합니다.
 - 아이디, 비번, 예매 설정 등은 로컬 컴퓨터에 저장하며 공유되지 않습니다.
