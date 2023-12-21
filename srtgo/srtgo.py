@@ -382,23 +382,32 @@ def reserve(rail_type="SRT"):
                     ):
                         if rail_type == "SRT":
                             reserve = rail.reserve(train, special_seat=choice["type"])
+                            print(
+                                colored(
+                                    "\n\n\n🎊예매 성공!!!🎊\n"
+                                    + reserve.__repr__()
+                                    + "\n"
+                                    + reserve.tickets.__repr__()
+                                    + "\n\n",
+                                    "red",
+                                    "on_green",
+                                )
+                            )
                         else:
                             reserve = rail.reserve(
                                 train,
                                 [AdultPassenger(info["passenger"])],
                                 choice["type"],
                             )
-                        print(
-                            colored(
-                                "\n\n\n🎊예매 성공!!!🎊\n"
-                                + reserve.__repr__()
-                                + "\n"
-                                + reserve.tickets.__repr__()
-                                + "\n\n",
-                                "red",
-                                "on_green",
+                            print(
+                                colored(
+                                    "\n\n\n🎊예매 성공!!!🎊\n"
+                                    + reserve.__repr__()
+                                    + "\n\n",
+                                    "red",
+                                    "on_green",
+                                )
                             )
-                        )
                         asyncio.run(tgprintf(reserve.__repr__()))
                         return
 
