@@ -19,40 +19,58 @@ def srtgo():
         menu = [
             inquirer.List(
                 "menu",
-                message="메뉴 선택 (↕:이동, Enter: 완료)",
+                message="메뉴 선택 (↕:이동, Enter: 선택)",
                 choices=[
-                    (colored("SRT", "red") + " 예매 시작", 1),
-                    (colored("KTX", "cyan") + " 예매 시작", 2),
-                    (colored("SRT", "red") + " 예매 확인/취소", 3),
-                    (colored("KTX", "cyan") + " 예매 확인/취소", 4),
-                    (colored("SRT", "red") + " 로그인 설정", 5),
-                    (colored("KTX", "cyan") + " 로그인 설정", 6),
-                    ("텔레그램 설정", 7),
-                    ("나가기", 8),
+                    ("예매 시작", 1),
+                    ("예매 확인/취소", 2),
+                    ("로그인 설정", 3),
+                    ("텔레그램 설정", 4),
+                    ("나가기", -1),
                 ],
             )
         ]
         choice = inquirer.prompt(menu)
 
-        if choice is None:
+        if choice is None or choice["menu"] == -1:
             return
 
         if choice["menu"] == 1:
-            reserve("SRT")
+            rail_type = choose_rail_type()
+            if rail_type:
+                reserve(rail_type)
+
         elif choice["menu"] == 2:
-            reserve("KTX")
+            rail_type = choose_rail_type()
+            if rail_type:
+                check_reservation(rail_type)
+
         elif choice["menu"] == 3:
-            check_reservation("SRT")
+            rail_type = choose_rail_type()
+            if rail_type:
+                set_login(rail_type)
+
         elif choice["menu"] == 4:
-            check_reservation("KTX")
-        elif choice["menu"] == 5:
-            set_login("SRT")
-        elif choice["menu"] == 6:
-            set_login("KTX")
-        elif choice["menu"] == 7:
             set_telegram()
-        else:
-            return
+
+
+def choose_rail_type():
+    q = [
+        inquirer.List(
+            "rail_type",
+            message="열차 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
+            choices=[
+                (colored("SRT", "red"), "SRT"),
+                (colored("KTX", "cyan"), "KTX"),
+                ("취소", -1),
+            ],
+        )
+    ]
+    choice = inquirer.prompt(q)
+
+    if choice is None or choice["rail_type"] == -1:
+        return None
+    else:
+        return choice["rail_type"]
 
 
 def set_telegram():
@@ -471,14 +489,14 @@ def check_reservation(rail_type="SRT"):
                 if rail_type == "SRT":
                     for i, reservation in enumerate(reservations):
                         out += (
-                            "\n▣"
+                            "\n🚅"
                             + reservation.__repr__()
                             + "\n"
                             + reservation.tickets.__repr__()
                         )
                 else:
                     for i, reservation in enumerate(reservations):
-                        out += "\n▣" + reservation.__repr__()
+                        out += "\n🚅" + reservation.__repr__()
 
             if len(out):
                 tgprintf = get_telegram()
