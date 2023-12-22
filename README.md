@@ -1,21 +1,24 @@
 # SRTgo: K-Train Reservation Helper
+
 SRTgo is:
+
 - This module is designed to automate the reservation of SRT and KTX train tickets.
 - Through the keyring module, the information such as username, password, departure station, and arrival station is stored on the local computer.
 - After the reservation is completed, a Telegram notification will be sent.
 - Currently, only one SRT ticket can be obtained per transaction.
-- In the case of reservation confirmation/cancellation, for SRT, all tickets can be confirmed or canceled, while for KTX, only unpaid tickets can be confirmed or canceled.  
+- In the case of reservation confirmation/cancellation, for SRT, all tickets can be confirmed or canceled, while for KTX, only unpaid tickets can be confirmed or canceled.
 
 ---
 
 - SRT 및 KTX 기차표 예매를 자동화합니다.
 - 아이디, 비번, 예매 설정 등은 로컬 컴퓨터에 저장하며 공유되지 않습니다.
 - 예약이 완료되면 텔레그램 알림을 전송합니다.
-   - [Bot Token 및 Chat Id 얻기](https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0).
+  - [Bot Token 및 Chat Id 얻기](https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0).
 - SRT는 한 번에 1장만 예매 가능합니다 (KTX는 여러 장 가능).
 - 예매 확인/취소의 경우 SRT는 모든 티켓을, KTX는 결제하지 않은 티켓만 확인 취소 할 수 있습니다.
 
 ## Installation
+
 - Download and install [Miniconda](https://conda.io/miniconda.html) or [Anaconda](https://www.anaconda.com/download/).
   - If you prefer a minimalistic installation, choose Miniconda.
 - Open the **Anaconda Prompt (Miniconda)** and type the following commands.
@@ -35,15 +38,18 @@ pip install .
 ```
 
 ```bash
-[?] 메뉴 선택 (↕:이동, Enter: 완료): SRT 예매 시작
- > SRT 예매 시작
-   KTX 예매 시작
-   SRT 예매 확인/취소
-   KTX 예매 확인/취소
-   SRT 로그인 설정
-   KTX 로그인 설정
+
+[?] 메뉴 선택 (↕:이동, Enter: 선택): 예매 시작
+ > 예매 시작
+   예매 확인/취소
+   로그인 설정
    텔레그램 설정
    나가기
+
+[?] 열차 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소): SRT
+ > SRT
+   KTX
+   취소
 
 [?] 출발역 선택 (↕:이동, Enter: 완료, Ctrl-C: 취소): 수서
  > 수서
@@ -117,20 +123,22 @@ pip install .
 [SRT] 12월 20일, 수서~동대구(18:00~19:34) 36900원(1석), 구입기한 12월 20일 17:05
 [2호차 2D (일반실) 어른/청소년 [36900원(600원 할인)]]
 
-
-[?] 메뉴 선택 (↕:이동, Enter: 완료): SRT 예매 확인/취소
-   SRT 예매 시작
-   KTX 예매 시작
- > SRT 예매 확인/취소
-   KTX 예매 확인/취소
-   SRT 로그인 설정
-   KTX 로그인 설정
+[?] 메뉴 선택 (↕:이동, Enter: 선택): 예매 확인/취소
+   예매 시작
+ > 예매 확인/취소
+   로그인 설정
    텔레그램 설정
    나가기
 
+[?] 열차 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소): SRT
+ > SRT
+   KTX
+   취소
+
 [?] 예약 취소 (Enter: 결정): [SRT] 12월 20일, 수서~동대구(18:00~19:34) 36900원(1석), 구입기한 12월 20일 17:05
-   돌아가기
  > [SRT] 12월 20일, 수서~동대구(18:00~19:34) 36900원(1석), 구입기한 12월 20일 17:05
+   텔레그램으로 예매 정보 전송
+   돌아가기
 
 [?] 정말 취소하시겠습니까 (y/N): y
 
@@ -138,7 +146,8 @@ pip install .
 ```
 
 ## To-Do
-- [X] Send ticket reservation information via Telegram
+
+- [x] Send ticket reservation information via Telegram
 - [ ] Reserve SRT tickets for multiple people
 
 ## Acknowledgment
