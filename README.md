@@ -24,11 +24,8 @@ SRTgo is:
 - Open the **Anaconda Prompt (Miniconda)** and type the following commands.
 
 ```bash
-chcp 949 # Windows 터미널 한글 깨짐 현상 해결
 conda install git
-git clone https://github.com/lapis42/srtgo
-cd srtgo
-pip install .
+pip install git+https://github.com/lapis42/srtgo
 ```
 
 ## Using SRTgo
