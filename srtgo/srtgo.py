@@ -9,6 +9,7 @@ from termcolor import colored
 from datetime import datetime, timedelta
 from SRT import SRT
 from SRT.seat_type import SeatType
+from SRT.passenger import Adult
 from korail2 import Korail
 from korail2 import AdultPassenger, ReserveOption
 
@@ -265,15 +266,12 @@ def reserve(rail_type="SRT"):
             ],
             default=default_time,
         ),
+        inquirer.List(
+            "passenger",
+            message="승객수 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
+            choices=list(range(1, 10)),
+        ),
     ]
-    if rail_type == "KTX":
-        q_info.append(
-            inquirer.List(
-                "passenger",
-                message="승객수 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
-                choices=list(range(1, 10)),
-            )
-        )
     info = inquirer.prompt(q_info)
     if info is None:
         return
@@ -358,6 +356,7 @@ def reserve(rail_type="SRT"):
                     info["date"],
                     info["time"],
                     available_only=False,
+                    passengers=[Adult(info["passenger"])],
                 )
             else:
                 trains = rail.search_train(
@@ -399,13 +398,22 @@ def reserve(rail_type="SRT"):
                         )
                     ):
                         if rail_type == "SRT":
-                            reserve = rail.reserve(train, special_seat=choice["type"])
+                            reserve = rail.reserve(
+                                train,
+                                passengers=[Adult(info["passenger"])],
+                                special_seat=choice["type"],
+                            )
                             print(
                                 colored(
                                     "\n\n\n🎊예매 성공!!!🎊\n"
                                     + reserve.__repr__()
                                     + "\n"
-                                    + reserve.tickets.__repr__()
+                                    + "\n".join(
+                                        [
+                                            ticket.__repr__()
+                                            for ticket in reserve.tickets
+                                        ]
+                                    )
                                     + "\n\n",
                                     "red",
                                     "on_green",
@@ -492,7 +500,7 @@ def check_reservation(rail_type="SRT"):
                             "\n🚅"
                             + reservation.__repr__()
                             + "\n"
-                            + reservation.tickets.__repr__()
+                            + "\n".join([t.__repr__() for t in reservation.tickets])
                         )
                 else:
                     for i, reservation in enumerate(reservations):

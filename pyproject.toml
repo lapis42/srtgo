@@ -7,7 +7,7 @@ name = "srtgo"
 authors = [
     {name = "DKim", email = "lapis42@gmail.com"},
 ]
-description = "SRT and KTX python scheduler"
+description = "SRTgo: K-Train Reservation Helper"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT License"}
@@ -15,7 +15,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "SRTrain",
+    "SRTrain @ git+https://github.com/lapis42/SRT",
     "korail2 @ git+https://github.com/carpedm20/korail2",
     "prompt_toolkit >=3",
     "inquirer",
@@ -26,6 +26,9 @@ dependencies = [
 ]
 dynamic = ["version"]
 [tool.setuptools_scm]
+
+[project.urls]
+Homepage = "https://github.com/lapis42/srtgo"
 
 [project.scripts]
 srtgo = "srtgo.srtgo:srtgo"
