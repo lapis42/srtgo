@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from SRT import SRT
 from SRT.seat_type import SeatType
 from SRT.passenger import Adult
+from SRT.errors import SRTResponseError
 from korail2 import Korail
 from korail2 import AdultPassenger, ReserveOption
 
@@ -438,9 +439,14 @@ def reserve(rail_type="SRT"):
                         return
 
             time.sleep(1 + 2 * random())
-
-        except Exception as ex:
+        except SRTResponseError as ex:
+            print()
             print(ex)
+            print("\n예매를 계속합니다\n\n")
+        except Exception as ex:
+            print()
+            print(ex)
+            print()
 
             answer = inquirer.prompt(
                 [inquirer.Confirm("continue", message="계속할까요", default=True)]
