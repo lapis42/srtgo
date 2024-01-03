@@ -1,4 +1,4 @@
-# SRTgo: K-Train Reservation Helper
+# SRTgo: K-Train (KTX, SRT) Reservation Macro
 
 SRTgo is:
 
@@ -9,7 +9,7 @@ SRTgo is:
 
 ---
 
-- SRT 및 KTX 기차표 예매를 자동화합니다.
+- SRT 및 KTX 기차표 예매를 자동화하는 매크로입니다.
 - 아이디, 비번, 예매 설정 등은 로컬 컴퓨터에 저장하며 공유되지 않습니다.
 - 예약이 완료되면 텔레그램 알림을 전송합니다.
   - [Bot Token 및 Chat Id 얻기](https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0).
