@@ -297,6 +297,7 @@ def reserve(rail_type="SRT"):
             info["date"],
             info["time"],
             available_only=False,
+            search_all=False,
         )
     else:
         trains = rail.search_train(
@@ -358,6 +359,7 @@ def reserve(rail_type="SRT"):
                     info["time"],
                     available_only=False,
                     passengers=[Adult(info["passenger"])],
+                    search_all=False,
                 )
             else:
                 trains = rail.search_train(
