@@ -18,7 +18,7 @@ dependencies = [
     "SRTrain @ git+https://github.com/lapis42/SRT",
     "korail2 @ git+https://github.com/carpedm20/korail2",
     "prompt_toolkit >=3",
-    "inquirer",
+    "inquirer==3.2.1",
     "python-telegram-bot",
     "termcolor",
     "click",
