@@ -3,17 +3,18 @@
 SRTgo is:
 
 - This module is designed to automate the reservation of SRT and KTX train tickets.
-- Through the keyring module, the information such as username, password, departure station, and arrival station is stored on the local computer.
+- Through the keyring module, the information such as username, password, credit card, departure station, and arrival station is stored on the local computer.
 - After the reservation is completed, a Telegram notification will be sent.
 - In the case of reservation confirmation/cancellation, for SRT, all tickets can be confirmed or canceled, while for KTX, only unpaid tickets can be confirmed or canceled.
 
 ---
 
 - SRT 및 KTX 기차표 예매를 자동화하는 매크로입니다.
-- 아이디, 비번, 예매 설정 등은 로컬 컴퓨터에 저장하며 공유되지 않습니다.
+- 아이디, 비번, 카드번호, 예매 설정 등은 로컬 컴퓨터에 [keyring 모듈](https://pypi.org/project/keyring/)을 통하여 저장하며 공유되지 않습니다.
 - 예약이 완료되면 텔레그램 알림을 전송합니다.
   - [Bot Token 및 Chat Id 얻기](https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0).
 - 예매 확인/취소의 경우 SRT는 모든 티켓을, KTX는 결제하지 않은 티켓만 확인 취소 할 수 있습니다.
+- SRT의 경우 신용카드 정보를 입력해두면, 예매 직후에 결제되도록 할 수 있습니다.
 
 ## Installation
 
@@ -38,6 +39,7 @@ pip install git+https://github.com/lapis42/srtgo
    예매 확인/취소
    로그인 설정
    텔레그램 설정
+   카드 설정
    나가기
 
 [?] 열차 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소): SRT
@@ -119,7 +121,9 @@ pip install git+https://github.com/lapis42/srtgo
    특실 우선
    특실만
 
-.
+[?] 예매 시 카드 결제 (y/N): N
+
+.........
 
 
 🎊예매 성공!!!🎊
