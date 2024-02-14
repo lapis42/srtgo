@@ -4,7 +4,7 @@ import keyring
 import time
 import telegram
 import asyncio
-from random import random
+from random import gammavariate
 from termcolor import colored
 from datetime import datetime, timedelta
 from SRT import SRT
@@ -27,6 +27,7 @@ def srtgo():
                     ("예매 확인/취소", 2),
                     ("로그인 설정", 3),
                     ("텔레그램 설정", 4),
+                    ("카드 설정", 5),
                     ("나가기", -1),
                 ],
             )
@@ -54,6 +55,8 @@ def srtgo():
         elif choice["menu"] == 4:
             set_telegram()
 
+        elif choice["menu"] == 5:
+            set_card()
 
 def choose_rail_type():
     q = [
@@ -119,6 +122,57 @@ def set_telegram():
         keyring.delete_password("telegram", "ok")
         return False
 
+def set_card():
+    if keyring.get_password("card", "ok") is not None:
+        number = keyring.get_password("card", "number")
+        password = keyring.get_password("card", "password")
+        birthday = keyring.get_password("card", "birthday")
+        expire = keyring.get_password("card", "expire")
+    else:
+        number = ""
+        password = ""
+        birthday = ""
+        expire = ""
+
+    q_card = [
+        inquirer.Text(
+            "number", message="신용카드 번호 (하이픈 제외(-), Enter: 완료, Ctrl-C: 취소)", default=number,
+        ),
+        inquirer.Text(
+            "password",
+            message="카드 비밀번호 앞 2자리 (Enter: 완료, Ctrl-C: 취소)",
+            default=password,
+        ),
+        inquirer.Text(
+            "birthday",
+            message="생년월일 (YYMMDD, Enter: 완료, Ctrl-C: 취소)",
+            default=birthday,
+        ),
+        inquirer.Text(
+            "expire",
+            message="카드 유효기간 (YYMM, Enter: 완료, Ctrl-C: 취소)",
+            default=expire,
+        ),
+    ]
+    card_info = inquirer.prompt(q_card)
+    if card_info is None:
+        return False
+
+    keyring.set_password("card", "ok", "1")
+    keyring.set_password("card", "number", card_info["number"])
+    keyring.set_password("card", "password", card_info["password"])
+    keyring.set_password("card", "birthday", card_info["birthday"])
+    keyring.set_password("card", "expire", card_info["expire"])
+
+def pay_card(rail, reservation):
+    if keyring.get_password("card", "ok") is not None:
+        number = keyring.get_password("card", "number")
+        password = keyring.get_password("card", "password")
+        birthday = keyring.get_password("card", "birthday")
+        expire = keyring.get_password("card", "expire")
+        return rail.pay_with_card(reservation, number, password, birthday, expire, 0, 'J')
+    else:
+        return False
 
 def get_telegram():
     if keyring.get_password("telegram", "ok") is not None:
@@ -217,6 +271,9 @@ def reserve(rail_type="SRT"):
     default_time = keyring.get_password(rail_type, "time")
     if default_time is None:
         default_time = "120000"
+    default_passenger = keyring.get_password(rail_type, "passenger")
+    if default_passenger is None:
+        default_passenger = 1
 
     if rail_type == "SRT":
         main_station = "수서"
@@ -271,6 +328,7 @@ def reserve(rail_type="SRT"):
             "passenger",
             message="승객수 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
             choices=list(range(1, 10)),
+            default=default_passenger,
         ),
     ]
     info = inquirer.prompt(q_info)
@@ -285,6 +343,7 @@ def reserve(rail_type="SRT"):
     keyring.set_password(rail_type, "arrival", info["arrival"])
     keyring.set_password(rail_type, "date", info["date"])
     keyring.set_password(rail_type, "time", info["time"])
+    keyring.set_password(rail_type, "passenger", info["passenger"])
 
     if info["date"] == today and int(info["time"]) < int(this_time):
         info["time"] = this_time
@@ -339,11 +398,64 @@ def reserve(rail_type="SRT"):
     if choice is None:
         return
 
+    do_search = True
     if len(choice["trains"]) == 0:
         print(colored("선택한 열차가 없습니다!", "green", "on_red") + "\n")
         return
+    elif len(choice["trains"]) == 1:
+        train = trains[choice["trains"][0]]
+        do_search = False
 
-    tgprintf = get_telegram()
+    def _reserve(train):
+        tgprintf = get_telegram()
+
+        if rail_type == "SRT":
+            reserve = rail.reserve(
+                train,
+                passengers=[Adult(info["passenger"])],
+                special_seat=choice["type"],
+            )
+
+            msg = reserve.__repr__() + "\n" + "\n".join([ticket.__repr__() for ticket in reserve.tickets])
+            print(
+                colored(
+                    "\n\n\n🎊예매 성공!!!🎊\n" + msg,
+                    "red",
+                    "on_green",
+                )
+            )
+            # pay with card
+            result = pay_card(rail, reserve)
+            if result:
+                print(
+                    colored(
+                        "🎊결제 성공!!!🎊",
+                        "green",
+                        "on_red",
+                    ), end=""
+                )
+            print(
+                colored(
+                    "\n\n",
+                    "red",
+                    "on_green",
+                )
+            )
+        else:
+            reserve = rail.reserve(
+                train,
+                [AdultPassenger(info["passenger"])],
+                choice["type"],
+            )
+            msg = reserve.__repr__()
+            print(
+                colored(
+                    "\n\n\n🎊예매 성공!!!🎊\n" + msg + "\n\n",
+                    "red",
+                    "on_green",
+                )
+            )
+        asyncio.run(tgprintf(msg))
 
     # start searching
     while True:
@@ -351,100 +463,74 @@ def reserve(rail_type="SRT"):
             # print(datetime.now().strftime("%H:%M:%S"))
             print(".", end="", flush=True)
 
-            if rail_type == "SRT":
-                trains = rail.search_train(
-                    info["departure"],
-                    info["arrival"],
-                    info["date"],
-                    info["time"],
-                    available_only=False,
-                    passengers=[Adult(info["passenger"])],
-                    search_all=False,
-                )
-            else:
-                trains = rail.search_train(
-                    info["departure"],
-                    info["arrival"],
-                    info["date"],
-                    info["time"],
-                    passengers=[AdultPassenger(info["passenger"])],
-                    include_no_seats=True,
-                )
+            if do_search:
+                if rail_type == "SRT":
+                    trains = rail.search_train(
+                        info["departure"],
+                        info["arrival"],
+                        info["date"],
+                        info["time"],
+                        available_only=False,
+                        passengers=[Adult(info["passenger"])],
+                        search_all=False,
+                    )
+                else:
+                    trains = rail.search_train(
+                        info["departure"],
+                        info["arrival"],
+                        info["date"],
+                        info["time"],
+                        passengers=[AdultPassenger(info["passenger"])],
+                        include_no_seats=True,
+                    )
 
-            for i, train in enumerate(trains):
-                if i in choice["trains"]:
-                    # print(train)
+                for i, train in enumerate(trains):
+                    if i in choice["trains"]:
+                        # print(train)
 
-                    # check seat availablity
-                    if (
-                        (
-                            choice["type"]
-                            in [seat_type.GENERAL_FIRST, seat_type.SPECIAL_FIRST]
-                            and (
-                                (rail_type == "SRT" and train.seat_available())
-                                or (rail_type == "KTX" and train.has_seat())
+                        # check seat availablity
+                        if (
+                            (
+                                choice["type"]
+                                in [seat_type.GENERAL_FIRST, seat_type.SPECIAL_FIRST]
+                                and (
+                                    (rail_type == "SRT" and train.seat_available())
+                                    or (rail_type == "KTX" and train.has_seat())
+                                )
                             )
-                        )
-                        or (
-                            choice["type"] == seat_type.GENERAL_ONLY
-                            and (
-                                (rail_type == "SRT" and train.general_seat_available())
-                                or (rail_type == "KTX" and train.has_general_seat())
-                            )
-                        )
-                        or (
-                            choice["type"] == seat_type.SPECIAL_ONLY
-                            and (
-                                (rail_type == "SRT" and train.special_seat_available())
-                                or (rail_type == "KTX" and train.has_special_seat())
-                            )
-                        )
-                    ):
-                        if rail_type == "SRT":
-                            reserve = rail.reserve(
-                                train,
-                                passengers=[Adult(info["passenger"])],
-                                special_seat=choice["type"],
-                            )
-                            print(
-                                colored(
-                                    "\n\n\n🎊예매 성공!!!🎊\n"
-                                    + reserve.__repr__()
-                                    + "\n"
-                                    + "\n".join(
-                                        [
-                                            ticket.__repr__()
-                                            for ticket in reserve.tickets
-                                        ]
+                            or (
+                                choice["type"] == seat_type.GENERAL_ONLY
+                                and (
+                                    (
+                                        rail_type == "SRT"
+                                        and train.general_seat_available()
                                     )
-                                    + "\n\n",
-                                    "red",
-                                    "on_green",
+                                    or (rail_type == "KTX" and train.has_general_seat())
                                 )
                             )
-                        else:
-                            reserve = rail.reserve(
-                                train,
-                                [AdultPassenger(info["passenger"])],
-                                choice["type"],
-                            )
-                            print(
-                                colored(
-                                    "\n\n\n🎊예매 성공!!!🎊\n"
-                                    + reserve.__repr__()
-                                    + "\n\n",
-                                    "red",
-                                    "on_green",
+                            or (
+                                choice["type"] == seat_type.SPECIAL_ONLY
+                                and (
+                                    (
+                                        rail_type == "SRT"
+                                        and train.special_seat_available()
+                                    )
+                                    or (rail_type == "KTX" and train.has_special_seat())
                                 )
                             )
-                        asyncio.run(tgprintf(reserve.__repr__()))
-                        return
+                        ):
+                            _reserve(train)
+                            return
+            else:
+                _reserve(train)
+                return
 
-            time.sleep(1 + 2 * random())
+            time.sleep(gammavariate(5, 0.5))
         except SRTResponseError as ex:
-            print()
-            print(ex)
-            print("\n예매를 계속합니다\n\n")
+            time.sleep(gammavariate(5, 0.5))
+            # print()
+            # print(ex)
+            # print("\n예매를 계속합니다\n\n")
         except Exception as ex:
             print()
             print(ex)
