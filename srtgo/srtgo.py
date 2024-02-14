@@ -394,6 +394,12 @@ def reserve(rail_type="SRT"):
             ],
         ),
     ]
+    if rail_type == "SRT":
+        q_choice.append(inquirer.Confirm(
+                    "pay",
+                    message="예매 시 카드 결제",
+                    default=False
+                ))
     choice = inquirer.prompt(q_choice)
     if choice is None:
         return
@@ -425,15 +431,16 @@ def reserve(rail_type="SRT"):
                 )
             )
             # pay with card
-            result = pay_card(rail, reserve)
-            if result:
-                print(
-                    colored(
-                        "🎊결제 성공!!!🎊",
-                        "green",
-                        "on_red",
-                    ), end=""
-                )
+            if choice["pay"]:
+                result = pay_card(rail, reserve)
+                if result:
+                    print(
+                        colored(
+                            "🎊결제 성공!!!🎊",
+                            "green",
+                            "on_red",
+                        ), end=""
+                    )
             print(
                 colored(
                     "\n\n",
@@ -525,9 +532,9 @@ def reserve(rail_type="SRT"):
                 _reserve(train)
                 return
 
-            time.sleep(gammavariate(5, 0.5))
+            time.sleep(gammavariate(5, 0.25))
         except SRTResponseError as ex:
-            time.sleep(gammavariate(5, 0.5))
+            time.sleep(gammavariate(5, 0.25))
             # print()
             # print(ex)
             # print("\n예매를 계속합니다\n\n")
