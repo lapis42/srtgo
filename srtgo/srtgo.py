@@ -271,9 +271,11 @@ def reserve(rail_type="SRT"):
     default_time = keyring.get_password(rail_type, "time")
     if default_time is None:
         default_time = "120000"
-    default_passenger = int(keyring.get_password(rail_type, "passenger"))
+    default_passenger = keyring.get_password(rail_type, "passenger")
     if default_passenger is None:
         default_passenger = 1
+    else:
+        default_passenger = int(default_passenger)
 
     if rail_type == "SRT":
         main_station = "수서"
