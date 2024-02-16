@@ -271,7 +271,7 @@ def reserve(rail_type="SRT"):
     default_time = keyring.get_password(rail_type, "time")
     if default_time is None:
         default_time = "120000"
-    default_passenger = keyring.get_password(rail_type, "passenger")
+    default_passenger = int(keyring.get_password(rail_type, "passenger"))
     if default_passenger is None:
         default_passenger = 1
 
@@ -343,7 +343,7 @@ def reserve(rail_type="SRT"):
     keyring.set_password(rail_type, "arrival", info["arrival"])
     keyring.set_password(rail_type, "date", info["date"])
     keyring.set_password(rail_type, "time", info["time"])
-    keyring.set_password(rail_type, "passenger", info["passenger"])
+    keyring.set_password(rail_type, "passenger", str(info["passenger"]))
 
     if info["date"] == today and int(info["time"]) < int(this_time):
         info["time"] = this_time
