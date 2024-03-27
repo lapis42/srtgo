@@ -286,13 +286,13 @@ def reserve(rail_type="SRT"):
         inquirer.List(
             "departure",
             message="출발역 선택 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
-            choices=[main_station, "오송", "대전", "동대구", "부산", "포항"],
+            choices=[main_station, "동탄", "오송", "대전", "동대구", "부산", "포항"],
             default=default_departure,
         ),
         inquirer.List(
             "arrival",
             message="도착역 선택 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
-            choices=[main_station, "오송", "대전", "동대구", "부산", "포항"],
+            choices=[main_station, "동탄", "오송", "대전", "동대구", "부산", "포항"],
             default=default_arrival,
         ),
         inquirer.List(
