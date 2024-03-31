@@ -13,6 +13,7 @@ from SRT.passenger import Adult
 from SRT.errors import SRTResponseError
 from korail2 import Korail
 from korail2 import AdultPassenger, ReserveOption
+from korail2 import SoldOutError
 
 
 @click.command()
@@ -540,6 +541,8 @@ def reserve(rail_type="SRT"):
             # print()
             # print(ex)
             # print("\n예매를 계속합니다\n\n")
+        except SoldOutError as ex:
+            time.sleep(gammavariate(5, 0.25))
         except Exception as ex:
             print()
             print(ex)
