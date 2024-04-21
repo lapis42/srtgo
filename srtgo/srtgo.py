@@ -59,6 +59,7 @@ def srtgo():
         elif choice["menu"] == 5:
             set_card()
 
+
 def choose_rail_type():
     q = [
         inquirer.List(
@@ -123,6 +124,7 @@ def set_telegram():
         keyring.delete_password("telegram", "ok")
         return False
 
+
 def set_card():
     if keyring.get_password("card", "ok") is not None:
         number = keyring.get_password("card", "number")
@@ -137,7 +139,9 @@ def set_card():
 
     q_card = [
         inquirer.Text(
-            "number", message="신용카드 번호 (하이픈 제외(-), Enter: 완료, Ctrl-C: 취소)", default=number,
+            "number",
+            message="신용카드 번호 (하이픈 제외(-), Enter: 완료, Ctrl-C: 취소)",
+            default=number,
         ),
         inquirer.Text(
             "password",
@@ -165,15 +169,19 @@ def set_card():
     keyring.set_password("card", "birthday", card_info["birthday"])
     keyring.set_password("card", "expire", card_info["expire"])
 
+
 def pay_card(rail, reservation):
     if keyring.get_password("card", "ok") is not None:
         number = keyring.get_password("card", "number")
         password = keyring.get_password("card", "password")
         birthday = keyring.get_password("card", "birthday")
         expire = keyring.get_password("card", "expire")
-        return rail.pay_with_card(reservation, number, password, birthday, expire, 0, 'J')
+        return rail.pay_with_card(
+            reservation, number, password, birthday, expire, 0, "J"
+        )
     else:
         return False
+
 
 def get_telegram():
     if keyring.get_password("telegram", "ok") is not None:
@@ -279,21 +287,21 @@ def reserve(rail_type="SRT"):
         default_passenger = int(default_passenger)
 
     if rail_type == "SRT":
-        main_station = "수서"
+        stations = ["수서", "동탄", "오송", "대전", "동대구", "부산", "포항"]
     else:
-        main_station = "서울"
+        stations = ["서울", "수원", "오송", "대전", "동대구", "부산", "포항"]
 
     q_info = [
         inquirer.List(
             "departure",
             message="출발역 선택 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
-            choices=[main_station, "동탄", "오송", "대전", "동대구", "부산", "포항"],
+            choices=stations,
             default=default_departure,
         ),
         inquirer.List(
             "arrival",
             message="도착역 선택 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
-            choices=[main_station, "동탄", "오송", "대전", "동대구", "부산", "포항"],
+            choices=stations,
             default=default_arrival,
         ),
         inquirer.List(
@@ -398,11 +406,9 @@ def reserve(rail_type="SRT"):
         ),
     ]
     if rail_type == "SRT":
-        q_choice.append(inquirer.Confirm(
-                    "pay",
-                    message="예매 시 카드 결제",
-                    default=False
-                ))
+        q_choice.append(
+            inquirer.Confirm("pay", message="예매 시 카드 결제", default=False)
+        )
     choice = inquirer.prompt(q_choice)
     if choice is None:
         return
@@ -425,7 +431,11 @@ def reserve(rail_type="SRT"):
                 special_seat=choice["type"],
             )
 
-            msg = reserve.__repr__() + "\n" + "\n".join([ticket.__repr__() for ticket in reserve.tickets])
+            msg = (
+                reserve.__repr__()
+                + "\n"
+                + "\n".join([ticket.__repr__() for ticket in reserve.tickets])
+            )
             print(
                 colored(
                     "\n\n\n🎊예매 성공!!!🎊\n" + msg,
@@ -442,7 +452,8 @@ def reserve(rail_type="SRT"):
                             "🎊결제 성공!!!🎊",
                             "green",
                             "on_red",
-                        ), end=""
+                        ),
+                        end="",
                     )
             print(
                 colored(
