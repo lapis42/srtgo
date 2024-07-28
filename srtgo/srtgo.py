@@ -17,7 +17,20 @@ from korail2 import AdultPassenger, ReserveOption
 from korail2 import SoldOutError
 
 
-STATIONS_KTX = ["서울", "행신", "용산", "영등포", "광명", "수원", "천안아산", "오송", "대전", "김천구미", "서대구", "동대구", "포항", "경주", "밀양", "울산", "구포", "부산", "광주송정", "목포"]
+STATIONS_SRT = [
+    "수서", "동탄", "평택지제", "곡성", "공주", "광주송정", "구례구", "김천(구미)", 
+    "나주", "남원", "대전", "동대구", "마산", "목포", "밀양", "부산", "서대구", 
+    "순천", "신경주", "여수EXPO", "여천", "오송", "울산(통도사)", "익산", "전주",
+    "정읍", "진영", "진주", "창원", "천안아산", "포항"
+]
+DEFAULT_SRT_STATION = [0, 1, 2, 10, 11, 15]
+STATIONS_KTX = [
+    "서울", "용산", "영등포", "광명", "수원", "천안아산", "오송", "대전", "서대전", 
+    "김천구미", "동대구", "경주", "포항", "밀양", "구포", "부산", "울산(통도사)", 
+    "마산", "창원중앙", "경산", "논산", "익산", "정읍", "광주송정", "목포",
+    "전주", "순천", "여수EXPO(구,여수역)", "청량리", "강릉", "행신", "정동진"
+]
+DEFAULT_KTX_STATION = [0, 6, 7, 10, 15]
 
 @click.command()
 def srtgo():
@@ -110,14 +123,12 @@ def get_station(rail_type):
         station_key = [int(x) for x in station_key.split(',')]
 
     if rail_type == "SRT":
-        stations = list(STATION_CODE.keys())
-        DEFAULT_SRT_STATION = [0, 1, 2, 10, 11, 15]
+        stations = STATIONS_SRT
 
         if station_key is None:
             station_key = DEFAULT_SRT_STATION
     else:
         stations = STATIONS_KTX
-        DEFAULT_KTX_STATION = [0, 4, 5, 7, 8, 11, 12, 17]
 
         if station_key is None:
             station_key = DEFAULT_KTX_STATION
