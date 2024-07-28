@@ -15,6 +15,7 @@ SRTgo is:
   - [Bot Token 및 Chat Id 얻기](https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0).
 - 예매 확인/취소의 경우 SRT는 모든 티켓을, KTX는 결제하지 않은 티켓만 확인 취소 할 수 있습니다.
 - SRT의 경우 신용카드 정보를 입력해두면, 예매 직후에 결제되도록 할 수 있습니다.
+- [New] 자주 사용하는 역을 지정할 수 있습니다.
 
 ## Installation
 
