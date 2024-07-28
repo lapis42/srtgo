@@ -10,11 +10,14 @@ from datetime import datetime, timedelta
 from SRT import SRT
 from SRT.seat_type import SeatType
 from SRT.passenger import Adult
+from SRT.constants import STATION_CODE
 from SRT.errors import SRTResponseError
 from korail2 import Korail
 from korail2 import AdultPassenger, ReserveOption
 from korail2 import SoldOutError
 
+
+STATIONS_KTX = ["서울", "행신", "용산", "영등포", "광명", "수원", "천안아산", "오송", "대전", "김천구미", "서대구", "동대구", "포항", "경주", "밀양", "울산", "구포", "부산", "광주송정", "목포"]
 
 @click.command()
 def srtgo():
@@ -29,6 +32,7 @@ def srtgo():
                     ("로그인 설정", 3),
                     ("텔레그램 설정", 4),
                     ("카드 설정", 5),
+                    ("역 설정", 6),
                     ("나가기", -1),
                 ],
             )
@@ -58,6 +62,11 @@ def srtgo():
 
         elif choice["menu"] == 5:
             set_card()
+        
+        elif choice["menu"] == 6:
+            rail_type = choose_rail_type()
+            if rail_type:
+                set_station(rail_type)
 
 
 def choose_rail_type():
@@ -79,6 +88,41 @@ def choose_rail_type():
     else:
         return choice["rail_type"]
 
+def set_station(rail_type):
+    stations, station_key = get_station(rail_type)
+
+    q_station = [inquirer.Checkbox(
+        "trains",
+        message="역 선택 (↕:이동, Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)",
+        choices=[(station, i) for i, station in enumerate(stations)],
+        default=station_key,
+    )]
+    station_info = inquirer.prompt(q_station)
+    if station_info is None:
+        return False
+    
+    station_key = ','.join([str(x) for x in station_info["trains"]])
+    keyring.set_password(rail_type, "station", station_key)
+
+def get_station(rail_type):
+    station_key = keyring.get_password(rail_type, "station")
+    if station_key is not None:
+        station_key = [int(x) for x in station_key.split(',')]
+
+    if rail_type == "SRT":
+        stations = list(STATION_CODE.keys())
+        DEFAULT_SRT_STATION = [0, 1, 2, 10, 11, 15]
+
+        if station_key is None:
+            station_key = DEFAULT_SRT_STATION
+    else:
+        stations = STATIONS_KTX
+        DEFAULT_KTX_STATION = [0, 4, 5, 7, 8, 11, 12, 17]
+
+        if station_key is None:
+            station_key = DEFAULT_KTX_STATION
+    
+    return stations, station_key
 
 def set_telegram():
     # telegram
@@ -286,22 +330,19 @@ def reserve(rail_type="SRT"):
     else:
         default_passenger = int(default_passenger)
 
-    if rail_type == "SRT":
-        stations = ["수서", "동탄", "오송", "대전", "동대구", "부산", "포항"]
-    else:
-        stations = ["서울", "수원", "오송", "대전", "동대구", "부산", "포항"]
+    stations, station_key = get_station(rail_type)
 
     q_info = [
         inquirer.List(
             "departure",
             message="출발역 선택 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
-            choices=stations,
+            choices=[stations[i] for i in station_key],
             default=default_departure,
         ),
         inquirer.List(
             "arrival",
             message="도착역 선택 (↕:이동, Enter: 완료, Ctrl-C: 취소)",
-            choices=stations,
+            choices=[stations[i] for i in station_key],
             default=default_arrival,
         ),
         inquirer.List(
@@ -360,24 +401,28 @@ def reserve(rail_type="SRT"):
         info["time"] = this_time
 
     # choose trains
-    if rail_type == "SRT":
-        trains = rail.search_train(
-            info["departure"],
-            info["arrival"],
-            info["date"],
-            info["time"],
-            available_only=False,
-            search_all=False,
-        )
-    else:
-        trains = rail.search_train(
-            info["departure"],
-            info["arrival"],
-            info["date"],
-            info["time"],
-            passengers=[AdultPassenger(info["passenger"])],
-            include_no_seats=True,
-        )
+    try:
+        if rail_type == "SRT":
+            trains = rail.search_train(
+                info["departure"],
+                info["arrival"],
+                info["date"],
+                info["time"],
+                available_only=False,
+                search_all=False,
+            )
+        else:
+            trains = rail.search_train(
+                info["departure"],
+                info["arrival"],
+                info["date"],
+                info["time"],
+                passengers=[AdultPassenger(info["passenger"])],
+                include_no_seats=True,
+            )
+    except Exception as err:
+        print(colored("예약 가능한 열차가 없습니다", "green", "on_red") + "\n")
+        return
 
     if len(trains) == 0:
         print(colored("예약 가능한 열차가 없습니다", "green", "on_red") + "\n")
@@ -390,7 +435,7 @@ def reserve(rail_type="SRT"):
     q_choice = [
         inquirer.Checkbox(
             "trains",
-            message="예약할 열차 선택 (↕:이동, Space: 선택, Enter: 완료, Ctrl-C: 취소)",
+            message="예약할 열차 선택 (↕:이동, Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)",
             choices=[(train.__repr__(), i) for i, train in enumerate(trains)],
             default=list(range(min(6, len(trains)))),
         ),
