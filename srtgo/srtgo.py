@@ -11,12 +11,15 @@ import telegram
 from termcolor import colored
 
 from SRT import SRT
+from SRT import constants
+from SRT.train import SRTTrain
 from SRT.seat_type import SeatType
-from SRT.passenger import Adult
-from SRT.constants import STATION_CODE
+from SRT.passenger import Passenger, Adult, Child
 from SRT.errors import SRTResponseError
+from SRT.response_data import SRTResponseData
+
 from korail2 import Korail
-from korail2 import AdultPassenger, ReserveOption
+from korail2 import AdultPassenger, ChildPassenger, ReserveOption
 from korail2 import SoldOutError
 
 
@@ -219,7 +222,7 @@ def set_login(rail_type="SRT"):
         return False
 
     try:
-        SRT(login_info["id"], login_info["pass"]) if rail_type == "SRT" else Korail(
+        SRT2(login_info["id"], login_info["pass"]) if rail_type == "SRT" else Korail(
             login_info["id"], login_info["pass"])
         
         keyring.set_password(rail_type, "id", login_info["id"])
@@ -239,7 +242,7 @@ def login(rail_type="SRT"):
     user_id = keyring.get_password(rail_type, "id")
     password = keyring.get_password(rail_type, "pass")
     
-    rail = SRT if rail_type == "SRT" else Korail
+    rail = SRT2 if rail_type == "SRT" else Korail
     return rail(user_id, password)
 
 
@@ -264,15 +267,20 @@ def reserve(rail_type="SRT"):
     stations, station_key = get_station(rail_type)
 
     q_info = [
-        inquirer.List("departure", message="출발역 선택", choices=[stations[i] for i in station_key], default=default_departure),
-        inquirer.List("arrival", message="도착역 선택", choices=[stations[i] for i in station_key], default=default_arrival),
-        inquirer.List("date", message="출발 날짜 선택", choices=[((now + timedelta(days=i)).strftime("%Y/%m/%d %a"), (now + timedelta(days=i)).strftime("%Y%m%d")) for i in range(28)], default=default_date),
-        inquirer.List("time", message="출발 시각 선택", choices=[(f"{h:02d}", f"{h:02d}0000") for h in range(0, 24, 2)], default=default_time[:2]),
-        inquirer.List("passenger", message="승객수", choices=range(1, 10), default=default_passenger),
+        inquirer.List("departure", message="출발역 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[stations[i] for i in station_key], default=default_departure),
+        inquirer.List("arrival", message="도착역 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[stations[i] for i in station_key], default=default_arrival),
+        inquirer.List("date", message="출발 날짜 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[((now + timedelta(days=i)).strftime("%Y/%m/%d %a"), (now + timedelta(days=i)).strftime("%Y%m%d")) for i in range(28)], default=default_date),
+        inquirer.List("time", message="출발 시각 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[(f"{h:02d}", f"{h:02d}0000") for h in range(0, 24, 2)], default=default_time[:2]),
+        inquirer.List("passenger", message="성인 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(1, 10), default=default_passenger),
     ]
     info = inquirer.prompt(q_info)
-    if info is None or info["departure"] == info["arrival"]:
-        print(colored("출발역과 도착역이 같거나 선택되지 않았습니다", "green", "on_red") + "\n")
+
+    if info is None:
+        print(colored("예매 정보 입력 중 취소되었습니다", "green", "on_red") + "\n")
+        return
+
+    if info["departure"] == info["arrival"]:
+        print(colored("출발역과 도착역이 같습니다", "green", "on_red") + "\n")
         return
 
     for key, value in info.items():
@@ -281,6 +289,8 @@ def reserve(rail_type="SRT"):
     if info["date"] == today and int(info["time"]) < int(this_time):
         info["time"] = this_time
 
+    passengers = [Adult(info["passenger"])] if rail_type == "SRT" else [AdultPassenger(info["passenger"])]
+
     # choose trains
     def search_train(rail, rail_type, info):
         search_params = {
@@ -288,17 +298,15 @@ def reserve(rail_type="SRT"):
             "arr": info["arrival"],
             "date": info["date"],
             "time": info["time"],
+            "passengers": passengers,
         }
         
         if rail_type == "SRT":
             search_params.update({
                 "available_only": False,
-                "passengers": [Adult(info["passenger"])],
-                "search_all": False,
             })
         else:
             search_params.update({
-                "passengers": [AdultPassenger(info["passenger"])],
                 "include_no_seats": True,
             })
         
@@ -317,7 +325,7 @@ def reserve(rail_type="SRT"):
     seat_type = SeatType if rail_type == "SRT" else ReserveOption
 
     q_choice = [
-        inquirer.Checkbox("trains", message="예약할 열차 선택", choices=[(train.__repr__(), i) for i, train in enumerate(trains)], default=list(range(min(6, len(trains))))),
+        inquirer.Checkbox("trains", message="예약할 열차 선택 (↕:이동, Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)", choices=[(train.__repr__(), i) for i, train in enumerate(trains)], default=None),
         inquirer.List("type", message="선택 유형", choices=[("일반실 우선", seat_type.GENERAL_FIRST), ("일반실만", seat_type.GENERAL_ONLY), ("특실 우선", seat_type.SPECIAL_FIRST), ("특실만", seat_type.SPECIAL_ONLY)]),
     ]
     if rail_type == "SRT":
@@ -335,7 +343,7 @@ def reserve(rail_type="SRT"):
         tgprintf = get_telegram()
 
         if rail_type == "SRT":
-            reserve = rail.reserve(train, passengers=[Adult(info["passenger"])], special_seat=choice["type"])
+            reserve = rail.reserve(train, passengers=passengers, special_seat=choice["type"])
             msg = f"{reserve}\n" + "\n".join(str(ticket) for ticket in reserve.tickets)
             print(colored(f"\n\n\n🎊예매 성공!!!🎊\n{msg}", "red", "on_green"))
             
@@ -343,8 +351,8 @@ def reserve(rail_type="SRT"):
                 print(colored("🎊결제 성공!!!🎊", "green", "on_red"), end="")
             print(colored("\n\n", "red", "on_green"))
         else:
-            reserve = rail.reserve(train, [AdultPassenger(info["passenger"])], choice["type"])
-            msg = str(reserve)
+            reserve = rail.reserve(train, passengers=passengers, option=choice["type"])
+            msg = str(reserve).strip()
             print(colored(f"\n\n\n🎊예매 성공!!!🎊\n{msg}\n\n", "red", "on_green"))
         
         asyncio.run(tgprintf(msg))
@@ -437,6 +445,74 @@ def check_reservation(rail_type="SRT"):
                 print(err)
             return
 
+class SRT2(SRT): 
+    def search_train(
+        self,
+        dep: str,
+        arr: str,
+        date: str | None = None,
+        time: str | None = None,
+        time_limit: str | None = None,
+        passengers: list[Passenger] | None = None,
+        available_only: bool = True,
+    ) -> list[SRTTrain]:
+        """주어진 출발지에서 도착지로 향하는 SRT 열차를 검색합니다.
 
+        Args:
+            dep (str): 출발역
+            arr (str): 도착역
+            date (str, optional): 출발 날짜 (yyyyMMdd) (default: 당일)
+            time (str, optional): 출발 시각 (hhmmss) (default: 0시 0분 0초)
+            time_limit (str, optional): 출발 시각 조회 한도 (hhmmss)
+            passengers (list[:class:`Passenger`], optional): 예약 인원 (default: 어른 1명)
+            available_only (bool, optional): 매진되지 않은 열차만 검색합니다 (default: True)
+
+        Returns:
+            list[:class:`SRTTrain`]: 열차 리스트
+        """
+
+        if dep not in constants.STATION_CODE or arr not in constants.STATION_CODE:
+            raise ValueError(f'Invalid station: "{dep}" or "{arr}"')
+
+        dep_code, arr_code = constants.STATION_CODE[dep], constants.STATION_CODE[arr]
+        date = date or datetime.now().strftime("%Y%m%d")
+        time = time or "000000"
+
+        passengers = passengers or [Adult()]
+        passengers = Passenger.combine(passengers)
+        passengers_count = str(Passenger.total_count(passengers))
+
+        data = {
+            "chtnDvCd": "1",
+            "arriveTime": "N",
+            "seatAttCd": "015",
+            "psgNum": passengers_count,
+            "trnGpCd": 109,
+            "stlbTrnClsfCd": "05",
+            "dptDt": date,
+            "dptTm": time,
+            "arvRsStnCd": arr_code,
+            "dptRsStnCd": dep_code,
+        }
+
+        r = self._session.post(url=constants.API_ENDPOINTS["search_schedule"], data=data)
+        parser = SRTResponseData(r.text)
+
+        if not parser.success():
+            raise SRTResponseError(parser.message())
+
+        self._log(parser.message())
+        all_trains = parser.get_all()["outDataSets"]["dsOutput1"]
+        trains = [SRTTrain(train) for train in all_trains]
+        trains = [train for train in trains if train.train_name == 'SRT']
+
+        if available_only:
+            trains = [t for t in trains if t.seat_available()]
+
+        if time_limit:
+            trains = [t for t in trains if t.dep_time <= time_limit]
+
+        return trains
+    
 if __name__ == "__main__":
     srtgo()

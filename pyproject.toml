@@ -15,8 +15,8 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "SRTrain @ git+https://github.com/lapis42/SRT",
-    "korail2 @ git+https://github.com/carpedm20/korail2",
+    "SRTrain >= 2.5.0",
+    "korail2 >= 0.4.0",
     "prompt_toolkit >=3",
     "inquirer",
     "python-telegram-bot",
