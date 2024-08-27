@@ -23,8 +23,7 @@ SRTgo is:
 - Open the **Anaconda Prompt (Miniconda)** and type the following commands.
 
 ```bash
-conda install git
-pip install git+https://github.com/lapis42/srtgo
+pip install srtgo
 ```
 
 ## Using SRTgo
