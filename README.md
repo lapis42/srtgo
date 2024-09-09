@@ -17,14 +17,8 @@ SRTgo is:
 
 
 ## Installation
-
-- Download and install [Miniconda](https://conda.io/miniconda.html) or [Anaconda](https://www.anaconda.com/download/).
-  - If you prefer a minimalistic installation, choose Miniconda.
-- Open the **Anaconda Prompt (Miniconda)** and type the following commands.
-
 ```bash
-conda install git
-pip install git+https://github.com/lapis42/srtgo
+pip install srtgo
 ```
 
 ## Using SRTgo
