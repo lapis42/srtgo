@@ -16,9 +16,9 @@ SRTgo is:
 - In the case of reservation confirmation/cancellation, for SRT, all tickets can be confirmed or canceled, while for KTX, only unpaid tickets can be confirmed or canceled.
 
 
-## Installation
+## Installation / Update
 ```bash
-pip install srtgo
+pip install srtgo -U
 ```
 
 ## Using SRTgo
