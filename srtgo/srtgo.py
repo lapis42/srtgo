@@ -377,10 +377,13 @@ def reserve(rail_type="SRT"):
                 return
 
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
-        except (SRTResponseError, SoldOutError):
+        except SoldOutError as ex:
+            print(f"\n{ex}\n")
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
         except Exception as ex:
             print(f"\n{ex}\n")
+            tgprintf = get_telegram()
+            asyncio.run(tgprintf(f"{ex}"))
             if not inquirer.confirm(message="계속할까요", default=True):
                 return
 
