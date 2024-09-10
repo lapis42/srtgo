@@ -15,8 +15,9 @@ from SRT import constants
 from SRT.train import SRTTrain
 from SRT.seat_type import SeatType
 from SRT.passenger import Passenger, Adult, Child
-from SRT.errors import SRTResponseError
+from SRT.errors import SRTResponseError, SRTNotLoggedInError
 from SRT.response_data import SRTResponseData
+from SRT.reservation import SRTReservation, SRTTicket
 
 from korail2 import Korail
 from korail2 import AdultPassenger, ChildPassenger, ReserveOption
@@ -263,6 +264,7 @@ def reserve(rail_type="SRT"):
     default_date = keyring.get_password(rail_type, "date") or today
     default_time = keyring.get_password(rail_type, "time") or "120000"
     default_passenger = int(keyring.get_password(rail_type, "passenger") or 1)
+    default_child = int(keyring.get_password(rail_type, "child") or 0)
 
     stations, station_key = get_station(rail_type)
 
@@ -271,7 +273,8 @@ def reserve(rail_type="SRT"):
         inquirer.List("arrival", message="도착역 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[stations[i] for i in station_key], default=default_arrival),
         inquirer.List("date", message="출발 날짜 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[((now + timedelta(days=i)).strftime("%Y/%m/%d %a"), (now + timedelta(days=i)).strftime("%Y%m%d")) for i in range(28)], default=default_date),
         inquirer.List("time", message="출발 시각 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[(f"{h:02d}", f"{h:02d}0000") for h in range(0, 24, 2)], default=default_time[:2]),
-        inquirer.List("passenger", message="성인 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(1, 10), default=default_passenger),
+        inquirer.List("passenger", message="성인 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(0, 10), default=default_passenger),
+        inquirer.List("child", message="어린이 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(0, 10), default=default_child),
     ]
     info = inquirer.prompt(q_info)
 
@@ -289,8 +292,16 @@ def reserve(rail_type="SRT"):
     if info["date"] == today and int(info["time"]) < int(this_time):
         info["time"] = this_time
 
-    passengers = [Adult(info["passenger"])] if rail_type == "SRT" else [AdultPassenger(info["passenger"])]
+    if info["passenger"] == 0 and info["child"] == 0:
+        print(colored("성인 또는 어린이 승객수는 0이 될 수 없습니다", "green", "on_red") + "\n")
+        return
 
+    passengers = []
+    if info["passenger"] > 0:
+        passengers.append((Adult if rail_type == "SRT" else AdultPassenger)(info["passenger"]))
+    if info["child"] > 0:
+        passengers.append((Child if rail_type == "SRT" else ChildPassenger)(info["child"]))
+    
     # choose trains
     def search_train(rail, rail_type, info):
         search_params = {
@@ -448,6 +459,27 @@ def check_reservation(rail_type="SRT"):
                 print(err)
             return
 
+class SRTTicket2(SRTTicket):
+    DISCOUNT_TYPE = {
+        '000': '어른/청소년',
+        '201': '어린이',
+        '301': '경로',
+        '205': '장애 1~3급',
+        '206': '장애 4~6급',
+    }
+    
+    def __init__(self, data):
+        self.car = data["scarNo"]
+        self.seat = data["seatNo"]
+        self.seat_type_code = data["psrmClCd"]
+        self.seat_type = self.SEAT_TYPE[self.seat_type_code]
+        self.passenger_type_code = data["dcntKndCd"]
+        self.passenger_type = self.DISCOUNT_TYPE[self.passenger_type_code]
+
+        self.price = int(data["rcvdAmt"])
+        self.original_price = int(data["stdrPrc"])
+        self.discount = int(data["dcntPrc"])
+
 class SRT2(SRT): 
     def search_train(
         self,
@@ -516,6 +548,27 @@ class SRT2(SRT):
             trains = [t for t in trains if t.dep_time <= time_limit]
 
         return trains
+    
+    def ticket_info(self, reservation: SRTReservation | int) -> list[SRTTicket2]:
+        if not self.is_login:
+            raise SRTNotLoggedInError()
+
+        if isinstance(reservation, SRTReservation):
+            reservation = reservation.reservation_number
+
+        url = constants.API_ENDPOINTS["ticket_info"]
+        data = {"pnrNo": reservation, "jrnySqno": "1"}
+
+        r = self._session.post(url=url, data=data)
+        parser = SRTResponseData(r.text)
+
+        if not parser.success():
+            raise SRTResponseError(parser.message())
+
+        tickets = [SRTTicket2(ticket) for ticket in parser.get_all()["trainListMap"]]
+
+        return tickets
+    
     
 if __name__ == "__main__":
     srtgo()
