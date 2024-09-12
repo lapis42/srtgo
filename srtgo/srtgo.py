@@ -477,7 +477,10 @@ class SRTTicket2(SRTTicket):
         self.seat_type_code = data["psrmClCd"]
         self.seat_type = self.SEAT_TYPE[self.seat_type_code]
         self.passenger_type_code = data["dcntKndCd"]
-        self.passenger_type = self.DISCOUNT_TYPE[self.passenger_type_code]
+        if self.passenger_type_code in self.DISCOUNT_TYPE:
+            self.passenger_type = self.DISCOUNT_TYPE[self.passenger_type_code]
+        else:
+            self.passenger_type = '어른/청소년'
 
         self.price = int(data["rcvdAmt"])
         self.original_price = int(data["stdrPrc"])
