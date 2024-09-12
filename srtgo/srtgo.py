@@ -272,7 +272,7 @@ def reserve(rail_type="SRT"):
         inquirer.List("departure", message="출발역 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[stations[i] for i in station_key], default=default_departure),
         inquirer.List("arrival", message="도착역 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[stations[i] for i in station_key], default=default_arrival),
         inquirer.List("date", message="출발 날짜 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[((now + timedelta(days=i)).strftime("%Y/%m/%d %a"), (now + timedelta(days=i)).strftime("%Y%m%d")) for i in range(28)], default=default_date),
-        inquirer.List("time", message="출발 시각 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[(f"{h:02d}", f"{h:02d}0000") for h in range(0, 24, 2)], default=default_time[:2]),
+        inquirer.List("time", message="출발 시각 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[(f"{h:02d}", f"{h:02d}0000") for h in range(0, 24)], default=default_time[:2]),
         inquirer.List("passenger", message="성인 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(0, 10), default=default_passenger),
         inquirer.List("child", message="어린이 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(0, 10), default=default_child),
     ]
@@ -378,26 +378,29 @@ def reserve(rail_type="SRT"):
 
             if do_search:
                 trains = search_train(rail, rail_type, info)
-
-                for i, train in enumerate(trains):
-                    if i in choice["trains"] and _is_seat_available(train, choice["type"], rail_type):
-                        _reserve(train)
+                for i in choice["trains"]:
+                    if _is_seat_available(trains[i], choice["type"], rail_type):
+                        _reserve(trains[i])
                         return
             else:
                 _reserve(train)
                 return
 
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
-        except SoldOutError as ex:
-            print(f"\n{ex}\n")
+        except (SoldOutError, SRTResponseError) as ex:
+            if isinstance(ex, SRTResponseError) and ex.msg != "잔여석없음":
+                if not _handle_error(ex):
+                    return
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
         except Exception as ex:
-            print(f"\n{ex}\n")
-            tgprintf = get_telegram()
-            asyncio.run(tgprintf(f"{ex}"))
-            if not inquirer.confirm(message="계속할까요", default=True):
+            if not _handle_error(ex):
                 return
 
+def _handle_error(ex):
+    print(f"\n{ex}")
+    tgprintf = get_telegram()
+    asyncio.run(tgprintf(str(ex)))
+    return inquirer.confirm(message="계속할까요", default=True)
 
 def _is_seat_available(train, seat_type, rail_type):
     if rail_type == "SRT":
