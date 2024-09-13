@@ -322,10 +322,6 @@ def reserve(rail_type="SRT"):
     if info["date"] == today and int(info["time"]) < int(this_time):
         info["time"] = this_time
 
-    if (info["passenger"] == 0) and ("child" in passenger_type and info["child"] == 0) and ("senior" in passenger_type and info["senior"] == 0):
-        print(colored("총 승객수는 0이 될 수 없습니다", "green", "on_red") + "\n")
-        return
-
     passengers = []
     if info["passenger"] > 0:
         passengers.append((Adult if rail_type == "SRT" else AdultPassenger)(info["passenger"]))
@@ -333,7 +329,24 @@ def reserve(rail_type="SRT"):
         passengers.append((Child if rail_type == "SRT" else ChildPassenger)(info["child"]))
     if "senior" in passenger_type and info["senior"] > 0:
         passengers.append((Senior if rail_type == "SRT" else SeniorPassenger)(info["senior"]))
-
+    
+    if len(passengers) == 0:
+        print(colored("승객수는 0이 될 수 없습니다", "green", "on_red") + "\n")
+        return
+    
+    if rail_type == "SRT":
+        print(*passengers)
+    else:
+        PASSENGER_TYPE = {
+            AdultPassenger: '어른/청소년',
+            ChildPassenger: '어린이',
+            SeniorPassenger: '경로우대',
+        }
+        msg_passengers = []
+        for passenger in passengers:
+            msg_passengers.append(f'{PASSENGER_TYPE[type(passenger)]} {passenger.count}명')
+        print(*msg_passengers)
+    
     # choose trains
     def search_train(rail, rail_type, info):
         search_params = {
