@@ -298,7 +298,7 @@ def reserve(rail_type="SRT"):
         inquirer.List("departure", message="출발역 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[stations[i] for i in station_key], default=default_departure),
         inquirer.List("arrival", message="도착역 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[stations[i] for i in station_key], default=default_arrival),
         inquirer.List("date", message="출발 날짜 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[((now + timedelta(days=i)).strftime("%Y/%m/%d %a"), (now + timedelta(days=i)).strftime("%Y%m%d")) for i in range(28)], default=default_date),
-        inquirer.List("time", message="출발 시각 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[(f"{h:02d}", f"{h:02d}0000") for h in range(0, 24)], default=default_time[:2]),
+        inquirer.List("time", message="출발 시각 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[(f"{h:02d}", f"{h:02d}0000") for h in range(0, 24)], default=default_time),
         inquirer.List("passenger", message="성인 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(0, 10), default=default_passenger),
     ]
     if "child" in passenger_type:
