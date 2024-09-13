@@ -152,9 +152,6 @@ def set_passenger():
         return
     
     passenger_type = choices.get("passenger_type", [])
-    if not passenger_type:
-        return
-    
     keyring.set_password("SRT", "passenger_type", ','.join(passenger_type))
 
 
@@ -423,9 +420,10 @@ def reserve(rail_type="SRT"):
 
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
         except (SoldOutError, SRTResponseError) as ex:
-            if isinstance(ex, SRTResponseError) and ex.msg != "잔여석없음" and not ex.msg.startswith("사용자가 많아 접속이 원활하지 않습니다"):
-                if not _handle_error(ex):
-                    breakpoint()
+            if isinstance(ex, SRTResponseError):
+                if ex.msg.startswith(("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다")):
+                    pass
+                elif not _handle_error(ex):
                     return
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
         except Exception as ex:
