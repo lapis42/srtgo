@@ -334,18 +334,13 @@ def reserve(rail_type="SRT"):
         print(colored("승객수는 0이 될 수 없습니다", "green", "on_red") + "\n")
         return
     
-    if rail_type == "SRT":
-        print(*passengers)
-    else:
-        PASSENGER_TYPE = {
-            AdultPassenger: '어른/청소년',
-            ChildPassenger: '어린이',
-            SeniorPassenger: '경로우대',
-        }
-        msg_passengers = []
-        for passenger in passengers:
-            msg_passengers.append(f'{PASSENGER_TYPE[type(passenger)]} {passenger.count}명')
-        print(*msg_passengers)
+    PASSENGER_TYPE = {
+        Adult if rail_type == "SRT" else AdultPassenger: '어른/청소년',
+        Child if rail_type == "SRT" else ChildPassenger: '어린이',
+        Senior if rail_type == "SRT" else SeniorPassenger: '경로우대',
+    }
+    msg_passengers = [f'{PASSENGER_TYPE[type(passenger)]} {passenger.count}명' for passenger in passengers]
+    print(*msg_passengers)
     
     # choose trains
     def search_train(rail, rail_type, info):
@@ -432,16 +427,12 @@ def reserve(rail_type="SRT"):
                 return
 
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
-        except (SoldOutError, SRTResponseError) as ex:
-            if isinstance(ex, SRTResponseError):
-                if ex.msg.startswith(("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다")):
-                    pass
-                elif not _handle_error(ex):
+
+        except Exception as ex:
+            if not ex.msg.startswith(("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다")):
+                if not _handle_error(ex):
                     return
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
-        except Exception as ex:
-            if not _handle_error(ex):
-                return
 
 def _handle_error(ex):
     print(f"\n{ex}")
