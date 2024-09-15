@@ -429,26 +429,21 @@ def reserve(rail_type="SRT"):
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
         
         except (SRTResponseError, KorailError) as ex:
-
-            print(f"Error: {ex}\nDetails: {type(ex)}\nArgs: {ex.args}")
-
             if not ex.msg.startswith(("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다")):
                 if not _handle_error(ex):
                     return
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
 
         except Exception as ex:
-            
-            print(f"Error: {ex}\nDetails: {type(ex)}\nArgs: {ex.args}")
-            
             if not _handle_error(ex):
                 return
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
 
 def _handle_error(ex):
-    print(f"\n{ex}")
+    msg = f"\nException: {ex}, Type: {type(ex)}, Args: {ex.args}, Message: {ex.msg if hasattr(ex, 'msg') else 'No message attribute'}"
+    print(msg)
     tgprintf = get_telegram()
-    asyncio.run(tgprintf(str(ex)))
+    asyncio.run(tgprintf(msg))
     return inquirer.confirm(message="계속할까요", default=True)
 
 def _is_seat_available(train, seat_type, rail_type):
