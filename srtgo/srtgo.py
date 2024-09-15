@@ -21,7 +21,7 @@ from SRT.errors import SRTResponseError, SRTNotLoggedInError
 
 from korail2 import Korail
 from korail2 import AdultPassenger, ChildPassenger, SeniorPassenger, ReserveOption
-from korail2 import SoldOutError
+from korail2 import KorailError
 
 
 STATIONS = {
@@ -427,11 +427,22 @@ def reserve(rail_type="SRT"):
                 return
 
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
+        
+        except (SRTResponseError, KorailError) as ex:
 
-        except Exception as ex:
+            print(f"Error: {ex}\nDetails: {type(ex)}\nArgs: {ex.args}")
+
             if not ex.msg.startswith(("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다")):
                 if not _handle_error(ex):
                     return
+            time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
+
+        except Exception as ex:
+            
+            print(f"Error: {ex}\nDetails: {type(ex)}\nArgs: {ex.args}")
+            
+            if not _handle_error(ex):
+                return
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
 
 def _handle_error(ex):
