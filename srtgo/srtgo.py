@@ -21,7 +21,8 @@ from SRT.errors import SRTResponseError, SRTNotLoggedInError
 
 from korail2 import Korail
 from korail2 import AdultPassenger, ChildPassenger, SeniorPassenger, ReserveOption
-from korail2 import SoldOutError
+from korail2 import TrainType
+from korail2 import KorailError
 
 
 STATIONS = {
@@ -71,7 +72,7 @@ def srtgo():
             4: set_telegram,
             5: set_card,
             6: lambda: set_station(rail_type),
-            7: set_passenger
+            7: set_options
         }
         action = actions.get(choice)
         if action:
@@ -86,7 +87,7 @@ def prompt_menu() -> ChoiceType:
         ("텔레그램 설정", 4),
         ("카드 설정", 5),
         ("역 설정", 6),
-        ("어린이/경로우대 설정", 7),
+        ("예매 옵션 설정", 7),
         ("나가기", -1),
     ]
     return inquirer.list_input(message="메뉴 선택 (↕:이동, Enter: 선택)", choices=choices)
@@ -139,25 +140,25 @@ def get_station(rail_type: RailType) -> Tuple[List[str], List[int]]:
     return stations, station_key or default_stations
 
 
-def set_passenger():
-    default_passenger_type = get_passenger()
+def set_options():
+    default_options = get_options()
     choices = inquirer.prompt([
-        inquirer.Checkbox("passenger_type",
-                          message="어린이/경로우대 선택 (Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)",
-                          choices=[("어린이", "child"), ("경로우대", "senior")],
-                          default=default_passenger_type)
+        inquirer.Checkbox("options",
+                          message="예매 옵션 선택 (Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)",
+                          choices=[("어린이", "child"), ("경로우대", "senior"), ("KTX만", "ktx")],
+                          default=default_options)
     ])
 
     if choices is None:
         return
     
-    passenger_type = choices.get("passenger_type", [])
-    keyring.set_password("SRT", "passenger_type", ','.join(passenger_type))
+    options = choices.get("options", [])
+    keyring.set_password("SRT", "options", ','.join(options))
 
 
-def get_passenger():
-    passenger_type = keyring.get_password("SRT", "passenger_type") or ""
-    return passenger_type.split(',') if passenger_type else []
+def get_options():
+    options = keyring.get_password("SRT", "options") or ""
+    return options.split(',') if options else []
 
 
 def set_telegram() -> bool:
@@ -292,7 +293,7 @@ def reserve(rail_type="SRT"):
     default_senior = int(keyring.get_password(rail_type, "senior") or 0)
 
     stations, station_key = get_station(rail_type)
-    passenger_type = get_passenger()
+    options = get_options()
 
     q_info = [
         inquirer.List("departure", message="출발역 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[stations[i] for i in station_key], default=default_departure),
@@ -301,9 +302,9 @@ def reserve(rail_type="SRT"):
         inquirer.List("time", message="출발 시각 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=[(f"{h:02d}", f"{h:02d}0000") for h in range(0, 24)], default=default_time),
         inquirer.List("passenger", message="성인 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(0, 10), default=default_passenger),
     ]
-    if "child" in passenger_type:
+    if "child" in options:
         q_info.append(inquirer.List("child", message="어린이 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(0, 10), default=default_child))
-    if "senior" in passenger_type:
+    if "senior" in options:
         q_info.append(inquirer.List("senior", message="경로우대 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(0, 10), default=default_senior))
     
     info = inquirer.prompt(q_info)
@@ -325,9 +326,9 @@ def reserve(rail_type="SRT"):
     passengers = []
     if info["passenger"] > 0:
         passengers.append((Adult if rail_type == "SRT" else AdultPassenger)(info["passenger"]))
-    if "child" in passenger_type and info["child"] > 0:
+    if "child" in options and info["child"] > 0:
         passengers.append((Child if rail_type == "SRT" else ChildPassenger)(info["child"]))
-    if "senior" in passenger_type and info["senior"] > 0:
+    if "senior" in options and info["senior"] > 0:
         passengers.append((Senior if rail_type == "SRT" else SeniorPassenger)(info["senior"]))
     
     if len(passengers) == 0:
@@ -360,7 +361,11 @@ def reserve(rail_type="SRT"):
             search_params.update({
                 "include_no_seats": True,
             })
-        
+            if "ktx" in options:
+                search_params.update({
+                    "train_type": TrainType.KTX,
+                })
+
         return rail.search_train(**search_params)
 
     try:
@@ -427,17 +432,23 @@ def reserve(rail_type="SRT"):
                 return
 
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
-
-        except Exception as ex:
+        
+        except (SRTResponseError, KorailError) as ex:
             if not ex.msg.startswith(("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다")):
                 if not _handle_error(ex):
                     return
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
 
+        except Exception as ex:
+            if not _handle_error(ex):
+                return
+            time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
+
 def _handle_error(ex):
-    print(f"\n{ex}")
+    msg = f"\nException: {ex}, Type: {type(ex)}, Args: {ex.args}, Message: {ex.msg if hasattr(ex, 'msg') else 'No message attribute'}"
+    print(msg)
     tgprintf = get_telegram()
-    asyncio.run(tgprintf(str(ex)))
+    asyncio.run(tgprintf(msg))
     return inquirer.confirm(message="계속할까요", default=True)
 
 def _is_seat_available(train, seat_type, rail_type):
