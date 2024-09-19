@@ -434,7 +434,7 @@ def reserve(rail_type="SRT"):
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
         
         except (SRTResponseError, KorailError) as ex:
-            if not ex.msg.startswith(("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다")):
+            if not ex.msg.startswith(("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다", "Sold out")):
                 if not _handle_error(ex):
                     return
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
