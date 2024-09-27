@@ -14,13 +14,14 @@ from SRT import SRT
 from SRT import constants
 from SRT.train import SRTTrain
 from SRT.seat_type import SeatType
-from SRT.passenger import Passenger, Adult, Child, Senior
+from SRT.passenger import Passenger, Adult, Child, Senior, Disability1To3, Disability4To6
 from SRT.response_data import SRTResponseData
 from SRT.reservation import SRTReservation, SRTTicket
 from SRT.errors import SRTResponseError, SRTNotLoggedInError
 
 from korail2 import Korail
 from korail2 import AdultPassenger, ChildPassenger, SeniorPassenger, ReserveOption
+from korail2 import Passenger as KorailPassenger
 from korail2 import TrainType
 from korail2 import KorailError
 
@@ -52,6 +53,15 @@ WAITING_BAR = ["|", "/", "-", "\\"]
 
 RailType = Union[str, None]
 ChoiceType = Union[int, None]
+
+
+class Disability1To3Passenger(KorailPassenger):
+    def __init__(self, count=1, discount_type='111', card='', card_no='', card_pw=''):
+        KorailPassenger.__init_internal__(self, '1', count, discount_type, card, card_no, card_pw)   
+
+class Disability4To6Passenger(KorailPassenger):
+    def __init__(self, count=1, discount_type='112', card='', card_no='', card_pw=''):
+        KorailPassenger.__init_internal__(self, '1', count, discount_type, card, card_no, card_pw)   
 
 
 @click.command()
@@ -143,10 +153,18 @@ def get_station(rail_type: RailType) -> Tuple[List[str], List[int]]:
 def set_options():
     default_options = get_options()
     choices = inquirer.prompt([
-        inquirer.Checkbox("options",
-                          message="예매 옵션 선택 (Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)",
-                          choices=[("어린이", "child"), ("경로우대", "senior"), ("KTX만", "ktx")],
-                          default=default_options)
+        inquirer.Checkbox(
+            "options",
+            message="예매 옵션 선택 (Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)",
+            choices=[
+                ("어린이", "child"),
+                ("경로우대", "senior"),
+                ("중증장애인", "disability1to3"),
+                ("경증장애인", "disability4to6"),
+                ("KTX만", "ktx")
+            ],
+            default=default_options
+        )
     ])
 
     if choices is None:
@@ -291,6 +309,8 @@ def reserve(rail_type="SRT"):
     default_passenger = int(keyring.get_password(rail_type, "passenger") or 1)
     default_child = int(keyring.get_password(rail_type, "child") or 0)
     default_senior = int(keyring.get_password(rail_type, "senior") or 0)
+    default_disability1to3 = int(keyring.get_password(rail_type, "disability1to3") or 0)
+    default_disability4to6 = int(keyring.get_password(rail_type, "disability4to6") or 0)
 
     stations, station_key = get_station(rail_type)
     options = get_options()
@@ -306,6 +326,10 @@ def reserve(rail_type="SRT"):
         q_info.append(inquirer.List("child", message="어린이 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(0, 10), default=default_child))
     if "senior" in options:
         q_info.append(inquirer.List("senior", message="경로우대 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(0, 10), default=default_senior))
+    if "disability1to3" in options:
+        q_info.append(inquirer.List("disability1to3", message="1~3급 장애인 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(0, 10), default=default_disability1to3))
+    if "disability4to6" in options:
+        q_info.append(inquirer.List("disability4to6", message="4~6급 장애인 승객수 (↕:이동, Enter: 선택, Ctrl-C: 취소)", choices=range(0, 10), default=default_disability4to6))
     
     info = inquirer.prompt(q_info)
 
@@ -330,6 +354,10 @@ def reserve(rail_type="SRT"):
         passengers.append((Child if rail_type == "SRT" else ChildPassenger)(info["child"]))
     if "senior" in options and info["senior"] > 0:
         passengers.append((Senior if rail_type == "SRT" else SeniorPassenger)(info["senior"]))
+    if "disability1to3" in options and info["disability1to3"] > 0:
+        passengers.append((Disability1To3 if rail_type == "SRT" else Disability1To3Passenger)(info["disability1to3"]))
+    if "disability4to6" in options and info["disability4to6"] > 0:
+        passengers.append((Disability4To6 if rail_type == "SRT" else Disability4To6Passenger)(info["disability4to6"]))
     
     if len(passengers) == 0:
         print(colored("승객수는 0이 될 수 없습니다", "green", "on_red") + "\n")
@@ -339,6 +367,8 @@ def reserve(rail_type="SRT"):
         Adult if rail_type == "SRT" else AdultPassenger: '어른/청소년',
         Child if rail_type == "SRT" else ChildPassenger: '어린이',
         Senior if rail_type == "SRT" else SeniorPassenger: '경로우대',
+        Disability1To3 if rail_type == "SRT" else Disability1To3Passenger: '1~3급 장애인',
+        Disability4To6 if rail_type == "SRT" else Disability4To6Passenger: '4~6급 장애인',
     }
     msg_passengers = [f'{PASSENGER_TYPE[type(passenger)]} {passenger.count}명' for passenger in passengers]
     print(*msg_passengers)
@@ -350,7 +380,7 @@ def reserve(rail_type="SRT"):
             "arr": info["arrival"],
             "date": info["date"],
             "time": info["time"],
-            "passengers": passengers,
+            "passengers": [Adult(len(passengers)) if rail_type == "SRT" else AdultPassenger(len(passengers))],
         }
         
         if rail_type == "SRT":
@@ -640,7 +670,7 @@ class SRT2(SRT):
         tickets = [SRTTicket2(ticket) for ticket in parser.get_all()["trainListMap"]]
 
         return tickets
-    
-    
+
+
 if __name__ == "__main__":
     srtgo()
