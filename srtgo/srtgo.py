@@ -229,7 +229,7 @@ def set_card() -> None:
     card_info = inquirer.prompt([
         inquirer.Password("number", message="신용카드 번호 (하이픈 제외(-), Enter: 완료, Ctrl-C: 취소)", default=card_info["number"]),
         inquirer.Password("password", message="카드 비밀번호 앞 2자리 (Enter: 완료, Ctrl-C: 취소)", default=card_info["password"]),
-        inquirer.Password("birthday", message="생년월일 (YYMMDD, Enter: 완료, Ctrl-C: 취소)", default=card_info["birthday"]),
+        inquirer.Password("birthday", message="생년월일 (YYMMDD) / 사업자등록번호 (Enter: 완료, Ctrl-C: 취소)", default=card_info["birthday"]),
         inquirer.Password("expire", message="카드 유효기간 (YYMM, Enter: 완료, Ctrl-C: 취소)", default=card_info["expire"])
     ])
     if card_info:
@@ -240,14 +240,15 @@ def set_card() -> None:
 
 def pay_card(rail, reservation) -> bool:
     if keyring.get_password("card", "ok"):
+        birthday = keyring.get_password("card", "birthday")
         return rail.pay_with_card(
             reservation,
             keyring.get_password("card", "number"),
             keyring.get_password("card", "password"),
-            keyring.get_password("card", "birthday"),
+            birthday,
             keyring.get_password("card", "expire"),
             0,
-            "J"
+            "J" if len(birthday) == 6 else "S"
         )
     return False
 
