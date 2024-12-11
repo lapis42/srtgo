@@ -160,5 +160,6 @@ pip install srtgo -U
 ```
 
 ## Acknowledgments
+- This project heavily depends on [SRT](https://github.com/ryanking13/SRT) by ryanking13 and [korail2](https://github.com/carpedm20/korail2) by carpedm20.
+- The recent changes also rely on [SRT](https://github.com/Monsteel/SRT) by Monsteel.
 
-This project is heavily dependent on [SRT](https://github.com/ryanking13/SRT) and [korail2](https://github.com/carpedm20/korail2).
