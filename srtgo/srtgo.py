@@ -1,5 +1,6 @@
 import asyncio
 import time
+import requests
 from datetime import datetime, timedelta
 from random import gammavariate
 from typing import Optional, List, Union, Tuple, Callable, Awaitable
@@ -11,7 +12,9 @@ import telegram
 from termcolor import colored
 
 from SRT import SRT
+from SRT.srt import USER_AGENT
 from SRT import constants
+from SRT.constants import SRT_MOBILE, API_ENDPOINTS
 from SRT.train import SRTTrain
 from SRT.seat_type import SeatType
 from SRT.passenger import Passenger, Adult, Child, Senior, Disability1To3, Disability4To6
@@ -582,8 +585,70 @@ class SRTTicket2(SRTTicket):
         self.price = int(data["rcvdAmt"])
         self.original_price = int(data["stdrPrc"])
         self.discount = int(data["dcntPrc"])
+        
+class NetFunnelHelper:
+    NETFUNNEL_URL = "http://nf.letskorail.com/ts.wseq"
+
+    OP_CODE = {
+        "getTidchkEnter": "5101",
+        "setComplete": "5004",
+    }
+
+    DEFAULT_HEADERS = {
+        "User-Agent": USER_AGENT,
+        "Accept": "*/*",
+        "Accept-Language": "ko,en;q=0.9,en-US;q=0.8",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "Pragma": "no-cache",
+        "Referer": SRT_MOBILE,
+        "Sec-Fetch-Dest": "script",
+        "Sec-Fetch-Mode": "no-cors",
+        "Sec-Fetch-Site": "cross-site",
+    }
+
+    def __init__(self):
+        self.session = requests.session()
+        self.session.headers.update(self.DEFAULT_HEADERS)
+
+    def get_netfunnel_key(self):
+        timestamp = int(time.time() * 1000)
+        response = self.session.get(
+            self.NETFUNNEL_URL,
+            params={
+                "opcode": self.OP_CODE["getTidchkEnter"],
+                "nfid": "0",
+                "prefix": f"NetFunnel.gRtype={self.OP_CODE['getTidchkEnter']};",
+                "sid": "service_1",
+                "aid": "act_10",
+                "js": "true",
+                str(timestamp): "",
+            },
+        ).text
+
+        key_start = response.find("key=") + 4
+        key_end = response.find("&", key_start)
+        return response[key_start:key_end]
+
+    def set_complete(self, key: str):
+        timestamp = int(time.time() * 1000)
+        self.session.get(
+            self.NETFUNNEL_URL,
+            params={
+                "opcode": self.OP_CODE["setComplete"],
+                "key": key,
+                "nfid": "0",
+                "prefix": f"NetFunnel.gRtype={self.OP_CODE['setComplete']};",
+                "js": "true",
+                str(timestamp): "",
+            },
+        )
 
 class SRT2(SRT): 
+    def __init__(self, srt_id: str, srt_pw: str, auto_login: bool = True, verbose: bool = False):
+        self._netfunnelHelper = NetFunnelHelper()
+        super().__init__(srt_id, srt_pw, auto_login, verbose)
+
     def search_train(
         self,
         dep: str,
@@ -616,6 +681,9 @@ class SRT2(SRT):
         date = date or datetime.now().strftime("%Y%m%d")
         time = time or "000000"
 
+        netfunnelKey = self._netfunnelHelper.get_netfunnel_key()
+        self._netfunnelHelper.set_complete(netfunnelKey)
+
         passengers = passengers or [Adult()]
         passengers = Passenger.combine(passengers)
         passengers_count = str(Passenger.total_count(passengers))
@@ -631,6 +699,7 @@ class SRT2(SRT):
             "dptTm": time,
             "arvRsStnCd": arr_code,
             "dptRsStnCd": dep_code,
+            "netfunnelKey": netfunnelKey,
         }
 
         r = self._session.post(url=constants.API_ENDPOINTS["search_schedule"], data=data)
