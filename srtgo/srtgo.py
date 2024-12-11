@@ -12,9 +12,8 @@ import telegram
 from termcolor import colored
 
 from SRT import SRT
-from SRT.srt import USER_AGENT
 from SRT import constants
-from SRT.constants import SRT_MOBILE, API_ENDPOINTS
+from SRT.constants import SRT_MOBILE
 from SRT.train import SRTTrain
 from SRT.seat_type import SeatType
 from SRT.passenger import Passenger, Adult, Child, Senior, Disability1To3, Disability4To6
@@ -545,6 +544,9 @@ def check_reservation(rail_type="SRT"):
                 print(err)
             return
 
+# -------------------------------------------------------------------------------------------------
+# Temporary codes for SRT
+# -------------------------------------------------------------------------------------------------
 class SRTTicket2(SRTTicket):
     DISCOUNT_TYPE = {
         "000": "어른/청소년",
@@ -585,7 +587,12 @@ class SRTTicket2(SRTTicket):
         self.price = int(data["rcvdAmt"])
         self.original_price = int(data["stdrPrc"])
         self.discount = int(data["dcntPrc"])
-        
+ 
+USER_AGENT = (
+    "Mozilla/5.0 (Linux; Android 5.1.1; LGM-V300K Build/N2G47H) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Version/4.0 Chrome/39.0.0.0 Mobile Safari/537.36SRT-APP-Android V.1.0.6"
+)
+
 class NetFunnelHelper:
     NETFUNNEL_URL = "http://nf.letskorail.com/ts.wseq"
 
