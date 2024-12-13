@@ -11,15 +11,10 @@ import keyring
 import telegram
 from termcolor import colored
 
-from SRT import SRT
-from SRT import constants
-from SRT.constants import SRT_MOBILE
-from SRT.train import SRTTrain
-from SRT.seat_type import SeatType
-from SRT.passenger import Passenger, Adult, Child, Senior, Disability1To3, Disability4To6
-from SRT.response_data import SRTResponseData
-from SRT.reservation import SRTReservation, SRTTicket
-from SRT.errors import SRTResponseError, SRTNotLoggedInError
+from .srt import SRT
+from .srt import SRTResponseError
+from .srt import SeatType
+from .srt import Adult, Child, Senior, Disability1To3, Disability4To6
 
 from korail2 import Korail
 from korail2 import AdultPassenger, ChildPassenger, SeniorPassenger, ReserveOption
@@ -269,7 +264,7 @@ def set_login(rail_type="SRT"):
         return False
 
     try:
-        SRT2(login_info["id"], login_info["pass"]) if rail_type == "SRT" else Korail(
+        SRT(login_info["id"], login_info["pass"]) if rail_type == "SRT" else Korail(
             login_info["id"], login_info["pass"])
         
         keyring.set_password(rail_type, "id", login_info["id"])
@@ -289,7 +284,7 @@ def login(rail_type="SRT"):
     user_id = keyring.get_password(rail_type, "id")
     password = keyring.get_password(rail_type, "pass")
     
-    rail = SRT2 if rail_type == "SRT" else Korail
+    rail = SRT if rail_type == "SRT" else Korail
     return rail(user_id, password)
 
 
@@ -398,13 +393,12 @@ def reserve(rail_type="SRT"):
                 search_params.update({
                     "train_type": TrainType.KTX,
                 })
-
         return rail.search_train(**search_params)
 
     try:
         trains = search_train(rail, rail_type, info)
     except Exception as err:
-        print(colored("예약 가능한 열차가 없습니다", "green", "on_red") + "\n")
+        print(err)
         return
 
     if not trains:
@@ -468,7 +462,7 @@ def reserve(rail_type="SRT"):
         
         except (SRTResponseError, KorailError) as ex:
             if ex.msg.startswith("정상적인 경로로 접근 부탁드립니다"):
-                rail._netfunnelHelper.clear_cache()
+                rail.clear()
             elif not ex.msg.startswith(("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다", "Sold out")):
                 if not _handle_error(ex):
                     return
@@ -545,214 +539,6 @@ def check_reservation(rail_type="SRT"):
             except Exception as err:
                 print(err)
             return
-
-# -------------------------------------------------------------------------------------------------
-# Temporary codes for SRT
-# -------------------------------------------------------------------------------------------------
-class SRTTicket2(SRTTicket):
-    DISCOUNT_TYPE = {
-        "000": "어른/청소년",
-        "101": "탄력운임기준할인", 
-        "105": "자유석 할인",
-        "106": "입석 할인",
-        "107": "역방향석 할인",
-        "108": "출입구석 할인",
-        "109": "가족석 일반전환 할인",
-        "111": "구간별 특정운임",
-        "112": "열차별 특정운임", 
-        "113": "구간별 비율할인(기준)",
-        "114": "열차별 비율할인(기준)",
-        "121": "공항직결 수색연결운임",
-        "131": "구간별 특별할인(기준)",
-        "132": "열차별 특별할인(기준)",
-        "133": "기본 특별할인(기준)",
-        "191": "정차역 할인",
-        "192": "매체 할인",
-        "201": "어린이",
-        "202": "동반유아 할인", 
-        "204": "경로",
-        "205": "1~3급 장애인",
-        "206": "4~6급 장애인",
-    }
-    
-    def __init__(self, data):
-        self.car = data["scarNo"]
-        self.seat = data["seatNo"]
-        self.seat_type_code = data["psrmClCd"]
-        self.seat_type = self.SEAT_TYPE[self.seat_type_code]
-        self.passenger_type_code = data["dcntKndCd"]
-        self.passenger_type = self.DISCOUNT_TYPE.get(self.passenger_type_code, '기타 할인')
-        self.price = int(data["rcvdAmt"])
-        self.original_price = int(data["stdrPrc"]) 
-        self.discount = int(data["dcntPrc"])
-
-
-
-
-class NetFunnelHelper:
-    NETFUNNEL_URL = "http://nf.letskorail.com/ts.wseq"
-
-    OP_CODE = {
-        "getTidchkEnter": "5101",
-        "setComplete": "5004", 
-    }
-
-    USER_AGENT = (
-        "Mozilla/5.0 (Linux; Android 5.1.1; LGM-V300K Build/N2G47H) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Version/4.0 Chrome/39.0.0.0 Mobile Safari/537.36SRT-APP-Android V.1.0.6"
-    )
-
-    DEFAULT_HEADERS = {
-        "User-Agent": USER_AGENT,
-        "Accept": "*/*",
-        "Accept-Language": "ko,en;q=0.9,en-US;q=0.8",
-        "Cache-Control": "no-cache", 
-        "Connection": "keep-alive",
-        "Pragma": "no-cache",
-        "Referer": SRT_MOBILE,
-        "Sec-Fetch-Dest": "script",
-        "Sec-Fetch-Mode": "no-cors", 
-        "Sec-Fetch-Site": "cross-site",
-    }
-
-    def __init__(self):
-        self.session = requests.session()
-        self.session.headers.update(self.DEFAULT_HEADERS)
-        self._cached_key = None
-        self._last_fetch_time = 0
-        self._cache_ttl = 48  # 48 seconds
-
-    def get_netfunnel_key(self):
-        current_time = time.time()
-        
-        # Return cached key if still valid
-        if self._cached_key and (current_time - self._last_fetch_time) < self._cache_ttl:
-            return self._cached_key
-
-        timestamp = str(int(current_time * 1000))
-        params = {
-            "opcode": self.OP_CODE["getTidchkEnter"],
-            "nfid": "0",
-            "prefix": f"NetFunnel.gRtype={self.OP_CODE['getTidchkEnter']};",
-            "sid": "service_1", 
-            "aid": "act_10",
-            "js": "true",
-            timestamp: "",
-        }
-
-        try:
-            response = self.session.get(self.NETFUNNEL_URL, params=params).text
-            key_start = response.find("key=") + 4
-            key_end = response.find("&", key_start)
-            self._cached_key = response[key_start:key_end]
-            self._last_fetch_time = current_time
-            self.set_complete(self._cached_key)
-            return self._cached_key
-        except Exception as ex:
-            self.clear_cache()
-            print(ex)
-            return None
-
-    def set_complete(self, key: str):
-        params = {
-            "opcode": self.OP_CODE["setComplete"],
-            "key": key,
-            "nfid": "0", 
-            "prefix": f"NetFunnel.gRtype={self.OP_CODE['setComplete']};",
-            "js": "true",
-            str(int(time.time() * 1000)): "",
-        }
-
-        try:
-            self.session.get(self.NETFUNNEL_URL, params=params)
-        except Exception as ex:
-            self.clear_cache()
-            print(ex)
-
-    def clear_cache(self):
-        self._cached_key = None
-        self._last_fetch_time = 0
-
-
-class SRT2(SRT):
-    def __init__(self, srt_id: str, srt_pw: str, auto_login: bool = True, verbose: bool = False):
-        self._netfunnelHelper = NetFunnelHelper()
-        super().__init__(srt_id, srt_pw, auto_login, verbose)
-
-    def search_train(
-        self,
-        dep: str,
-        arr: str,
-        date: str | None = None,
-        time: str | None = None,
-        time_limit: str | None = None,
-        passengers: list[Passenger] | None = None,
-        available_only: bool = True,
-    ) -> list[SRTTrain]:
-        # Validate stations
-        if dep not in constants.STATION_CODE or arr not in constants.STATION_CODE:
-            raise ValueError(f'Invalid station: "{dep}" or "{arr}"')
-
-        # Set defaults and prepare data
-        date = date or datetime.now().strftime("%Y%m%d")
-        time = time or "000000"
-        passengers = Passenger.combine(passengers or [Adult()])
-        
-        data = {
-            "chtnDvCd": "1",
-            "arriveTime": "N", 
-            "seatAttCd": "015",
-            "psgNum": str(Passenger.total_count(passengers)),
-            "trnGpCd": 109,
-            "stlbTrnClsfCd": "05",
-            "dptDt": date,
-            "dptTm": time,
-            "arvRsStnCd": constants.STATION_CODE[arr],
-            "dptRsStnCd": constants.STATION_CODE[dep],
-            "netfunnelKey": self._netfunnelHelper.get_netfunnel_key(),
-        }
-
-        # Make request and parse response
-        r = self._session.post(url=constants.API_ENDPOINTS["search_schedule"], data=data)
-        parser = SRTResponseData(r.text)
-
-        if not parser.success():
-            raise SRTResponseError(parser.message())
-
-        self._log(parser.message())
-
-        # Process trains and apply filters in one pass
-        trains = []
-        for train in parser.get_all()["outDataSets"]["dsOutput1"]:
-            if train["stlbTrnClsfCd"] != '17':  # Skip non-SRT trains
-                continue
-                
-            srt_train = SRTTrain(train)
-            if available_only and not srt_train.seat_available():
-                continue
-            if time_limit and srt_train.dep_time > time_limit:
-                continue
-                
-            trains.append(srt_train)
-
-        return trains
-
-    def ticket_info(self, reservation: SRTReservation | int) -> list[SRTTicket2]:
-        if not self.is_login:
-            raise SRTNotLoggedInError()
-
-        reservation_number = getattr(reservation, 'reservation_number', reservation)
-        
-        r = self._session.post(
-            url=constants.API_ENDPOINTS["ticket_info"],
-            data={"pnrNo": reservation_number, "jrnySqno": "1"}
-        )
-        parser = SRTResponseData(r.text)
-
-        if not parser.success():
-            raise SRTResponseError(parser.message())
-
-        return [SRTTicket2(ticket) for ticket in parser.get_all()["trainListMap"]]
 
 
 if __name__ == "__main__":

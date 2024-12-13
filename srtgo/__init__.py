@@ -1,1 +1,0 @@
-from .srtgo import srtgo
