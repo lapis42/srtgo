@@ -486,42 +486,52 @@ class NetFunnelHelper:
 
         try:
             timestamp = str(int(current_time * 1000))
-            params = {
-                "opcode": self.OP_CODE["getTidchkEnter"],
-                "nfid": "0",
-                "prefix": f"NetFunnel.gRtype={self.OP_CODE['getTidchkEnter']};",
-                "sid": "service_1", 
-                "aid": "act_10",
-                "js": "true",
-                timestamp: "",
-            }
+            
+            # Get key
+            params = self._build_params(self.OP_CODE["getTidchkEnter"], timestamp)
             response = self.session.get(self.NETFUNNEL_URL, params=params).text
             
-            key_start = response.find("key=") + 4
-            key_end = response.find("&", key_start)
-            self._cached_key = response[key_start:key_end]
+            key_match = re.search(r"key=([^&']+)", response)
+            if not key_match:
+                self.clear()
+                return None
+                
+            self._cached_key = key_match.group(1)
             self._last_fetch_time = current_time
             
-            # Set complete status
-            params = {
-                "opcode": self.OP_CODE["setComplete"],
-                "key": self._cached_key,
-                "nfid": "0", 
-                "prefix": f"NetFunnel.gRtype={self.OP_CODE['setComplete']};",
-                "js": "true",
-                str(int(time.time() * 1000)): "",
-            }
-            self.session.get(self.NETFUNNEL_URL, params=params)
+            # Set complete
+            if self._set(self._cached_key) or self._set(self._cached_key):
+                return self._cached_key
             
-            return self._cached_key
+            self.clear()
+            return None
 
         except Exception as ex:
             self.clear()
             print(ex)
             return None
 
+    def _build_params(self, opcode: str, timestamp: str, key: str = None) -> dict:
+        params = {
+            "opcode": opcode,
+            "nfid": "0",
+            "prefix": f"NetFunnel.gRtype={opcode};",
+            "sid": "service_1", 
+            "aid": "act_10",
+            "js": "true",
+            timestamp: ""
+        }
+        if key:
+            params["key"] = key
+        return params
+
+    def _set(self, key: str) -> bool:
+        timestamp = str(int(time.time() * 1000))
+        params = self._build_params(self.OP_CODE["setComplete"], timestamp, key)
+        return "Already Completed" in self.session.get(self.NETFUNNEL_URL, params=params).text
+
     def clear(self):
-        self._cached_key = None
+        self._cached_key = None 
         self._last_fetch_time = 0
 
     def _is_cache_valid(self, current_time: float) -> bool:
@@ -669,22 +679,45 @@ class SRT:
         if dep not in STATION_CODE or arr not in STATION_CODE:
             raise ValueError(f'Invalid station: "{dep}" or "{arr}"')
 
-        date = date or datetime.now().strftime("%Y%m%d")
-        time = time or "000000"
+        now = datetime.now()
+        today = now.strftime("%Y%m%d")
+        date = date or today
+        
+        if date < today:
+            raise ValueError("Date cannot be before today")
+            
+        time = (
+            max(time or "000000", now.strftime("%H%M%S")) 
+            if date == today
+            else time or "000000"
+        )
+
         passengers = Passenger.combine(passengers or [Adult()])
+
+        netfunnel_key = self._netfunnel.get() or self._netfunnel.get()
+        if netfunnel_key is None:
+            raise SRTResponseError("Failed to get NetFunnel key")
 
         data = {
             "chtnDvCd": "1",
-            "arriveTime": "N",
-            "seatAttCd": "015", 
-            "psgNum": str(Passenger.total_count(passengers)),
-            "trnGpCd": 109,
-            "stlbTrnClsfCd": "05",
             "dptDt": date,
             "dptTm": time,
-            "arvRsStnCd": STATION_CODE[arr],
+            "dptDt1": date,
+            "dptTm1": time[:2] + "0000",
             "dptRsStnCd": STATION_CODE[dep],
-            "netfunnelKey": self._netfunnel.get(),
+            "arvRsStnCd": STATION_CODE[arr],
+            "stlbTrnClsfCd": "05",
+            "trnGpCd": 109,
+            "trnNo": "",
+            "psgNum": str(Passenger.total_count(passengers)),
+            "seatAttCd": "015", 
+            "arriveTime": "N",
+            "tkDptDt": "",
+            "tkDptTm": "",
+            "tkTrnNo": "",
+            "tkTripChgFlg": "",
+            "dlayTnumAplFlg": "Y",
+            "netfunnelKey": netfunnel_key
         }
 
         r = self._session.post(url=API_ENDPOINTS["search_schedule"], data=data)
