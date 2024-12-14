@@ -1,15 +1,14 @@
 import asyncio
-import time
-import requests
-from datetime import datetime, timedelta
-from random import gammavariate
-from typing import Optional, List, Union, Tuple, Callable, Awaitable
-
 import click
 import inquirer
 import keyring
+import logging
 import telegram
+import time
+from datetime import datetime, timedelta
+from random import gammavariate
 from termcolor import colored
+from typing import Awaitable, Callable, List, Optional, Tuple, Union
 
 from .srt import SRT
 from .srt import SRTResponseError
@@ -62,52 +61,54 @@ class Disability4To6Passenger(KorailPassenger):
 
 
 @click.command()
-def srtgo():
-    while True:
-        choice = prompt_menu()
-        if choice == -1:
-            break
-
-        rail_type = get_rail_type(choice)
-        if rail_type is None and choice in [1, 2, 3, 6]:
-            continue
-
-        actions = {
-            1: lambda: reserve(rail_type),
-            2: lambda: check_reservation(rail_type),
-            3: lambda: set_login(rail_type),
-            4: set_telegram,
-            5: set_card,
-            6: lambda: set_station(rail_type),
-            7: set_options
-        }
-        action = actions.get(choice)
-        if action:
-            action()
-
-
-def prompt_menu() -> ChoiceType:
-    choices = [
+@click.option("--debug", is_flag=True, help="Debug mode")
+def srtgo(debug=False):
+    MENU_CHOICES = [
         ("예매 시작", 1),
         ("예매 확인/취소", 2),
-        ("로그인 설정", 3),
+        ("로그인 설정", 3), 
         ("텔레그램 설정", 4),
         ("카드 설정", 5),
         ("역 설정", 6),
         ("예매 옵션 설정", 7),
-        ("나가기", -1),
+        ("나가기", -1)
     ]
-    return inquirer.list_input(message="메뉴 선택 (↕:이동, Enter: 선택)", choices=choices)
 
+    RAIL_CHOICES = [
+        (colored("SRT", "red"), "SRT"),
+        (colored("KTX", "cyan"), "KTX"),
+        ("취소", -1)
+    ]
 
-def get_rail_type(choice: int) -> Optional[str]:
-    if choice not in [1, 2, 3, 6]:
-        return None
+    ACTIONS = {
+        1: lambda rt: reserve(rt, debug),
+        2: check_reservation,
+        3: set_login,
+        4: lambda _: set_telegram(),
+        5: lambda _: set_card(),
+        6: set_station,
+        7: lambda _: set_options()
+    }
 
-    return inquirer.list_input(
-        message="열차 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
-        choices=[(colored("SRT", "red"), "SRT"), (colored("KTX", "cyan"), "KTX"), ("취소", -1)]
-    )
+    while True:
+        choice = inquirer.list_input(message="메뉴 선택 (↕:이동, Enter: 선택)", choices=MENU_CHOICES)
+        
+        if choice == -1:
+            break
+
+        if choice in {1, 2, 3, 6}:
+            rail_type = inquirer.list_input(
+                message="열차 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소)",
+                choices=RAIL_CHOICES
+            )
+            if rail_type in {-1, None}:
+                continue
+        else:
+            rail_type = None
+
+        action = ACTIONS.get(choice)
+        if action:
+            action(rail_type)
 
 
 def set_station(rail_type: RailType) -> bool:
@@ -288,7 +289,7 @@ def login(rail_type="SRT"):
     return rail(user_id, password)
 
 
-def reserve(rail_type="SRT"):
+def reserve(rail_type="SRT", debug=False):
     rail = login(rail_type)
 
     # Default values and prompts for user input
@@ -398,7 +399,7 @@ def reserve(rail_type="SRT"):
     try:
         trains = search_train(rail, rail_type, info)
     except Exception as err:
-        print(err)
+        print(str(err))
         return
 
     if not trains:
@@ -462,6 +463,8 @@ def reserve(rail_type="SRT"):
         
         except (SRTResponseError, KorailError) as ex:
             if ex.msg.startswith("정상적인 경로로 접근 부탁드립니다"):
+                if debug:
+                    print(ex)
                 rail.clear()
             elif not ex.msg.startswith(("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다", "Sold out")):
                 if not _handle_error(ex):

@@ -21,9 +21,6 @@ DEFAULT_HEADERS: Dict[str, str] = {
     "Accept": "application/json",
 }
 
-RESULT_SUCCESS = "SUCC"
-RESULT_FAIL = "FAIL"
-
 RESERVE_JOBID = {
     "PERSONAL": "1101",  # 개인예약
     "STANDBY": "1102",  # 예약대기
@@ -90,7 +87,7 @@ API_ENDPOINTS = {
     "search_schedule": f"{SRT_MOBILE}/ara/selectListAra10007_n.do",
     "reserve": f"{SRT_MOBILE}/arc/selectListArc05013_n.do",
     "tickets": f"{SRT_MOBILE}/atc/selectListAtc14016_n.do",
-    "ticket_info": f"{SRT_MOBILE}/ard/selectListArd02017_n.do?",
+    "ticket_info": f"{SRT_MOBILE}/ard/selectListArd02019_n.do?",
     "cancel": f"{SRT_MOBILE}/ard/selectListArd02045_n.do",
     "standby_option": f"{SRT_MOBILE}/ata/selectListAta01135_n.do",
     "payment": f"{SRT_MOBILE}/ata/selectListAta09036_n.do",
@@ -116,6 +113,9 @@ class SRTDuplicateError(SRTResponseError):
     pass
 
 class SRTNotLoggedInError(SRTError):
+    pass
+
+class SRTNetFunnelError(SRTError):
     pass
 
 
@@ -333,8 +333,8 @@ class SRTReservation:
 class SRTResponseData:
     """SRT Response data class that parses JSON response from API request"""
 
-    STATUS_SUCCESS = RESULT_SUCCESS
-    STATUS_FAIL = RESULT_FAIL
+    STATUS_SUCCESS = "SUCC"
+    STATUS_FAIL = "FAIL"
 
     def __init__(self, response: str) -> None:
         self._json = json.loads(response)
@@ -453,21 +453,26 @@ class SRTTrain(Train):
 class NetFunnelHelper:
     NETFUNNEL_URL = "http://nf.letskorail.com/ts.wseq"
 
+    WAIT_STATUS_PASS = "200"
+    WAIT_STATUS_FAIL = "201" 
+    ALREADY_COMPLETED = "502"
+
     OP_CODE = {
-        "getTidchkEnter": "5101", 
+        "getTidchkEnter": "5101",
+        "chkEnter": "5002", 
         "setComplete": "5004",
     }
 
     DEFAULT_HEADERS = {
         "User-Agent": USER_AGENT,
         "Accept": "*/*",
-        "Accept-Language": "ko,en;q=0.9,en-US;q=0.8", 
+        "Accept-Language": "ko,en;q=0.9,en-US;q=0.8",
         "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
+        "Connection": "keep-alive", 
         "Pragma": "no-cache",
         "Referer": SRT_MOBILE,
         "Sec-Fetch-Dest": "script",
-        "Sec-Fetch-Mode": "no-cors", 
+        "Sec-Fetch-Mode": "no-cors",
         "Sec-Fetch-Site": "cross-site",
     }
 
@@ -478,67 +483,83 @@ class NetFunnelHelper:
         self._last_fetch_time = 0
         self._cache_ttl = 50  # 50 seconds
 
-    def get(self):
+    def run(self):
         current_time = time.time()
-        
         if self._is_cache_valid(current_time):
             return self._cached_key
 
         try:
-            timestamp = str(int(current_time * 1000))
-            
-            # Get key
-            params = self._build_params(self.OP_CODE["getTidchkEnter"], timestamp)
-            response = self.session.get(self.NETFUNNEL_URL, params=params).text
-            
-            key_match = re.search(r"key=([^&']+)", response)
-            if not key_match:
-                self.clear()
-                return None
-                
-            self._cached_key = key_match.group(1)
+            status, self._cached_key, nwait = self._start()
             self._last_fetch_time = current_time
+
+            while status == self.WAIT_STATUS_FAIL:
+                print(f"\r현재 {nwait}명 대기중...", end="", flush=True)
+                time.sleep(1)
+                status, self._cached_key, nwait = self._check()
             
-            # Set complete
-            if self._set(self._cached_key) or self._set(self._cached_key):
+            # Try completing once
+            status, _, _ = self._complete()
+            if status == self.WAIT_STATUS_PASS or status == self.ALREADY_COMPLETED:
                 return self._cached_key
-            
+
             self.clear()
-            return None
+            raise SRTNetFunnelError("Failed to complete NetFunnel")
 
         except Exception as ex:
             self.clear()
-            print(ex)
-            return None
+            raise SRTNetFunnelError(str(ex))
 
-    def _build_params(self, opcode: str, timestamp: str, key: str = None) -> dict:
+    def clear(self):
+        self._cached_key = None
+        self._last_fetch_time = 0
+
+    def _start(self):
+        return self._make_request("getTidchkEnter")
+
+    def _check(self):
+        return self._make_request("chkEnter")
+
+    def _complete(self):
+        return self._make_request("setComplete")
+
+    def _make_request(self, opcode: str):
+        params = self._build_params(self.OP_CODE[opcode])
+        response = self._parse(self.session.get(self.NETFUNNEL_URL, params=params).text)
+        return response.get("status"), response.get("key"), response.get("nwait")
+
+    def _build_params(self, opcode: str, timestamp: str = None, key: str = None) -> dict:
         params = {
             "opcode": opcode,
             "nfid": "0",
             "prefix": f"NetFunnel.gRtype={opcode};",
-            "sid": "service_1", 
-            "aid": "act_10",
             "js": "true",
-            timestamp: ""
+            str(int(time.time() * 1000) if timestamp is None else timestamp): ""
         }
-        if key:
-            params["key"] = key
+
+        if opcode in (self.OP_CODE["getTidchkEnter"], self.OP_CODE["chkEnter"]):
+            params.update({"sid": "service_1", "aid": "act_10"})
+            if opcode == self.OP_CODE["chkEnter"]:
+                params.update({"key": key or self._cached_key, "ttl": "1"})
+        elif opcode == self.OP_CODE["setComplete"]:
+            params["key"] = key or self._cached_key
+
         return params
 
-    def _set(self, key: str) -> bool:
-        timestamp = str(int(time.time() * 1000))
-        params = self._build_params(self.OP_CODE["setComplete"], timestamp, key)
-        return "Already Completed" in self.session.get(self.NETFUNNEL_URL, params=params).text
+    def _parse(self, response: str) -> dict:
+        result_match = re.search(r"NetFunnel\.gControl\.result='([^']+)'", response)
+        if not result_match:
+            raise SRTNetFunnelError("Failed to parse NetFunnel response")
 
-    def clear(self):
-        self._cached_key = None 
-        self._last_fetch_time = 0
+        code, status, params_str = result_match.group(1).split(":", 2)
+        if not params_str:
+            raise SRTNetFunnelError("Failed to parse NetFunnel response")
+
+        params = dict(param.split("=", 1) for param in params_str.split("&") if "=" in param)
+        params.update({"code": code, "status": status})
+        return params
 
     def _is_cache_valid(self, current_time: float) -> bool:
-        return (
-            self._cached_key is not None and
-            (current_time - self._last_fetch_time) < self._cache_ttl
-        )
+        return bool(self._cached_key and (current_time - self._last_fetch_time) < self._cache_ttl)
 
 
 # SRT class
@@ -694,9 +715,9 @@ class SRT:
 
         passengers = Passenger.combine(passengers or [Adult()])
 
-        netfunnel_key = self._netfunnel.get() or self._netfunnel.get()
+        netfunnel_key = self._netfunnel.run()
         if netfunnel_key is None:
-            raise SRTResponseError("Failed to get NetFunnel key")
+            raise SRTNetFunnelError("Failed to get NetFunnel key")
 
         data = {
             "chtnDvCd": "1",
