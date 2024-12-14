@@ -462,10 +462,12 @@ def reserve(rail_type="SRT", debug=False):
             time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
         
         except (SRTResponseError, KorailError) as ex:
-            if ex.msg.startswith("정상적인 경로로 접근 부탁드립니다"):
+            if isinstance(ex, SRTResponseError) and ex.msg.startswith("정상적인 경로로 접근 부탁드립니다"):
                 if debug:
                     print(ex)
                 rail.clear()
+            elif isinstance(ex, SRTResponseError) and ex.msg.startswith("로그인 후 사용하십시오"):
+                rail.login()
             elif not ex.msg.startswith(("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다", "Sold out")):
                 if not _handle_error(ex):
                     return
