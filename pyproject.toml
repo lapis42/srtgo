@@ -15,7 +15,6 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "korail2 >= 0.4.0",
     "prompt_toolkit >=3",
     "inquirer",
     "python-telegram-bot",
