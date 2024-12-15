@@ -5,15 +5,15 @@
     :copyright: (c) 2014 by Taehoon Kim.
     :license: BSD, see LICENSE for more details.
 """
-import re
-import time
-import requests
-import itertools
 import base64
+import itertools
 import json
-from datetime import datetime, timedelta
-from Crypto.Util.Padding import pad
+import re
+import requests
+import time
 from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
+from datetime import datetime, timedelta
 from functools import reduce
 
 
@@ -146,6 +146,31 @@ class Ticket(Train):
     def get_ticket_no(self):
         return "-".join(map(str, (self.sale_info1, self.sale_info2, self.sale_info3, self.sale_info4)))
 
+class Reservation(Train):
+    """Train reservation information"""
+    def __init__(self, data):
+        super().__init__(data)
+        self.dep_date = data.get('h_run_dt')
+        self.arr_date = data.get('h_run_dt')
+        self.rsv_id = data.get('h_pnr_no')
+        self.seat_no_count = int(data.get('h_tot_seat_cnt'))
+        self.buy_limit_date = data.get('h_ntisu_lmt_dt')
+        self.buy_limit_time = data.get('h_ntisu_lmt_tm')
+        self.price = int(data.get('h_rsv_amt'))
+        self.journey_no = data.get('txtJrnySqno', "001")
+        self.journey_cnt = data.get('txtJrnyCnt', "01")
+        self.rsv_chg_no = data.get('hidRsvChgNo', "00000")
+
+    def __repr__(self):
+        repr_str = super().__repr__()
+        repr_str += f", {self.price}원({self.seat_no_count}석)"
+        buy_limit_time = f"{self.buy_limit_time[:2]}:{self.buy_limit_time[2:4]}"
+        buy_limit_date = f"{int(self.buy_limit_date[4:6])}월 {int(self.buy_limit_date[6:])}일"
+        repr_str += f", 구입기한 {buy_limit_date} {buy_limit_time}"
+        return repr_str
+
+
+# Passenger classes
 class Passenger:
     """Base class for passengers"""
     def __init_internal__(self, typecode, count=1, discount_type='000', card='', card_no='', card_pw=''):
@@ -209,6 +234,8 @@ class Disability4To6Passenger(Passenger):
     def __init__(self, count=1, discount_type='112', card='', card_no='', card_pw=''):
         Passenger.__init_internal__(self, '1', count, discount_type, card, card_no, card_pw)   
 
+
+# Options
 class TrainType:
     KTX = "100"
     SAEMAEUL = "101"
@@ -227,30 +254,8 @@ class ReserveOption:
     SPECIAL_FIRST = "SPECIAL_FIRST"
     SPECIAL_ONLY = "SPECIAL_ONLY"
 
-class Reservation(Train):
-    """Train reservation information"""
-    def __init__(self, data, wct_no=None):
-        super().__init__(data)
-        self.dep_date = data.get('h_run_dt')
-        self.arr_date = data.get('h_run_dt')
-        self.rsv_id = data.get('h_pnr_no')
-        self.seat_no_count = int(data.get('h_tot_seat_cnt'))
-        self.buy_limit_date = data.get('h_ntisu_lmt_dt')
-        self.buy_limit_time = data.get('h_ntisu_lmt_tm')
-        self.price = int(data.get('h_rsv_amt'))
-        self.journey_no = data.get('txtJrnySqno', "001")
-        self.journey_cnt = data.get('txtJrnyCnt', "01")
-        self.rsv_chg_no = data.get('hidRsvChgNo', "00000")
 
-    def __repr__(self):
-        repr_str = super().__repr__()
-        repr_str += f", {self.price}원({self.seat_no_count}석)"
-        buy_limit_time = f"{self.buy_limit_time[:2]}:{self.buy_limit_time[2:4]}"
-        buy_limit_date = f"{int(self.buy_limit_date[4:6])}월 {int(self.buy_limit_date[6:])}일"
-        repr_str += f", 구입기한 {buy_limit_date} {buy_limit_time}"
-        return repr_str
-
-
+# Korail errors
 class KorailError(Exception):
     """Base class for Korail errors"""
     def __init__(self, msg, code=None):
@@ -281,6 +286,7 @@ class NetFunnelError(Exception):
 
     def __str__(self):
         return self.msg
+
 
 # NetFunnel
 class NetFunnelHelper:
@@ -376,6 +382,7 @@ class NetFunnelHelper:
 
     def _is_cache_valid(self, current_time: float) -> bool:
         return bool(self._cached_key and (current_time - self._last_fetch_time) < self._cache_ttl)
+
 
 class Korail:
     """Main Korail API interface"""

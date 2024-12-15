@@ -2,7 +2,6 @@ import asyncio
 import click
 import inquirer
 import keyring
-import logging
 import telegram
 import time
 from datetime import datetime, timedelta
@@ -10,16 +9,17 @@ from random import gammavariate
 from termcolor import colored
 from typing import Awaitable, Callable, List, Optional, Tuple, Union
 
-from .srt import SRT
-from .srt import SRTResponseError
-from .srt import SeatType
-from .srt import Adult, Child, Senior, Disability1To3, Disability4To6
+from .srt import (
+    SRT, SRTResponseError, SeatType,
+    Adult, Child, Senior, Disability1To3, Disability4To6
+)
 
-from .ktx import Korail
-from .ktx import AdultPassenger, ChildPassenger, SeniorPassenger, Disability1To3Passenger, Disability4To6Passenger
-from .ktx import TrainType
-from .ktx import ReserveOption
-from .ktx import KorailError
+from .ktx import (
+    Korail, KorailError,
+    AdultPassenger, ChildPassenger, SeniorPassenger,
+    Disability1To3Passenger, Disability4To6Passenger,
+    TrainType, ReserveOption
+)
 
 
 STATIONS = {
@@ -49,8 +49,6 @@ WAITING_BAR = ["|", "/", "-", "\\"]
 
 RailType = Union[str, None]
 ChoiceType = Union[int, None]
-
-
 
 
 @click.command()

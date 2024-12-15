@@ -1136,7 +1136,7 @@ class SRT:
         r = self._session.post(url=API_ENDPOINTS["payment"], data=data)
         response = json.loads(r.text)
 
-        if response["outDataSets"]["dsOutput0"][0]["strResult"] == RESULT_FAIL:
+        if response["outDataSets"]["dsOutput0"][0]["strResult"] == "FAIL":
             raise SRTResponseError(response["outDataSets"]["dsOutput0"][0]["msgTxt"])
 
         return True
