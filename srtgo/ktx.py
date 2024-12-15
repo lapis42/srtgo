@@ -530,38 +530,14 @@ class Korail:
 
             return trains
 
-    def reserve(self, train, passengers=None, option=ReserveOption.GENERAL_FIRST, try_waiting=False):
+    def reserve(self, train, passengers=None, option=ReserveOption.GENERAL_FIRST):
         reserving_seat = True
-        seat_type = None
-        try:
-            if train.has_seat() is False:  # 자리가 둘다 없는 경우는 SoldOutError발생
-                raise SoldOutError()
-            elif option == ReserveOption.GENERAL_ONLY:  # 이후 일반석, 특실 중 하나는 무조건 있는 조건
-                if train.has_general_seat():
-                    seat_type = '1'
-                else:
-                    raise SoldOutError()
-            elif option == ReserveOption.SPECIAL_ONLY:
-                if train.has_special_seat():
-                    seat_type = '2'
-                else:
-                    raise SoldOutError()
-            elif option == ReserveOption.GENERAL_FIRST:
-                if train.has_general_seat():
-                    seat_type = '1'
-                else:
-                    seat_type = '2'
-            elif option == ReserveOption.SPECIAL_FIRST:
-                if train.has_special_seat():
-                    seat_type = '2'
-                else:
-                    seat_type = '1'
-        except SoldOutError as e:
-            if try_waiting and option != ReserveOption.SPECIAL_ONLY and train.has_general_waiting_list():
-                reserving_seat = False
-                seat_type = '1'
-            else:
-                raise e
+        is_special_seat = {
+            ReserveOption.GENERAL_ONLY: False,
+            ReserveOption.SPECIAL_ONLY: True,
+            ReserveOption.GENERAL_FIRST: not train.has_general_seat(),
+            ReserveOption.SPECIAL_FIRST: train.has_special_seat(),
+        }[option]
 
         passengers = passengers or [AdultPassenger()]
         passengers = Passenger.reduce(passengers)
@@ -594,7 +570,7 @@ class Korail:
             'txtRunDt1': train.run_date,
             'txtTrnClsfCd1': train.train_type,
             'txtTrnGpCd1': train.train_group,
-            'txtPsrmClCd1': seat_type,
+            'txtPsrmClCd1': '2' if is_special_seat else '1',
             'txtChgFlg1': '',
             'txtJrnySqno2': '',
             'txtJrnyTpCd2': '',
@@ -620,6 +596,8 @@ class Korail:
             reservation = self.reservations(rsv_id)
             reservation.wct_no = wct_no
             return reservation
+        else:
+            raise SoldOutError()
 
     def tickets(self):
         data = {

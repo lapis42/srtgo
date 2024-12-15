@@ -405,17 +405,30 @@ def reserve(rail_type="SRT", debug=False):
 
     q_choice = [
         inquirer.Checkbox("trains", message="예약할 열차 선택 (↕:이동, Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)", choices=[(train.__repr__(), i) for i, train in enumerate(trains)], default=None),
-        inquirer.List("type", message="선택 유형", choices=[("일반실 우선", seat_type.GENERAL_FIRST), ("일반실만", seat_type.GENERAL_ONLY), ("특실 우선", seat_type.SPECIAL_FIRST), ("특실만", seat_type.SPECIAL_ONLY)]),
-        inquirer.Confirm("pay", message="예매 시 카드 결제", default=False)
     ]
     
     choice = inquirer.prompt(q_choice)
     if choice is None or not choice["trains"]:
         print(colored("선택한 열차가 없습니다!", "green", "on_red") + "\n")
         return
+    
+    n_trains = len(choice["trains"])
 
-    do_search = len(choice["trains"]) > 1
-    train = trains[choice["trains"][0]] if not do_search else None
+    q_choice = []
+    if n_trains > 1:
+        do_search = True
+        q_choice.append(inquirer.List("type", message="선택 유형", choices=[("일반실 우선", seat_type.GENERAL_FIRST), ("일반실만", seat_type.GENERAL_ONLY), ("특실 우선", seat_type.SPECIAL_FIRST), ("특실만", seat_type.SPECIAL_ONLY)]))
+    else:
+        # Binary choice if only one train
+        do_search = False
+        train = trains[choice["trains"][0]]
+        q_choice.append(inquirer.List("type", message="선택 유형", choices=[("일반실만", seat_type.GENERAL_ONLY), ("특실만", seat_type.SPECIAL_ONLY)]))
+    q_choice.append(inquirer.Confirm("pay", message="예매 시 카드 결제", default=False))
+
+    choice = inquirer.prompt(q_choice)
+    if choice is None:
+        print(colored("예매 정보 입력 중 취소되었습니다", "green", "on_red") + "\n")
+        return
 
     def _reserve(train):
         tgprintf = get_telegram()
