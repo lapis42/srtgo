@@ -256,15 +256,15 @@ class SRTTicket:
     }
 
     def __init__(self, data: dict) -> None:
-        self.car = data["scarNo"]
-        self.seat = data["seatNo"]
-        self.seat_type_code = data["psrmClCd"]
+        self.car = data.get("scarNo")
+        self.seat = data.get("seatNo")
+        self.seat_type_code = data.get("psrmClCd")
         self.seat_type = self.SEAT_TYPE[self.seat_type_code]
-        self.passenger_type_code = data["dcntKndCd"]
+        self.passenger_type_code = data.get("dcntKndCd")
         self.passenger_type = self.DISCOUNT_TYPE.get(self.passenger_type_code, "기타 할인")
-        self.price = int(data["rcvdAmt"])
-        self.original_price = int(data["stdrPrc"]) 
-        self.discount = int(data["dcntPrc"])
+        self.price = int(data.get("rcvdAmt"))
+        self.original_price = int(data.get("stdrPrc")) 
+        self.discount = int(data.get("dcntPrc"))
 
     def __str__(self) -> str:
         return self.dump()
@@ -280,26 +280,27 @@ class SRTTicket:
 
 class SRTReservation:
     def __init__(self, train, pay, tickets):
-        self.reservation_number = train["pnrNo"]
-        self.total_cost = train["rcvdAmt"]
-        self.seat_count = train["tkSpecNum"]
+        self.reservation_number = train.get("pnrNo")
+        self.total_cost = int(train.get("rcvdAmt"))
+        self.seat_count = train.get("tkSpecNum") or int(train.get("seatNum"))
 
-        self.train_code = pay["stlbTrnClsfCd"]
+        self.train_code = pay.get("stlbTrnClsfCd")
         self.train_name = TRAIN_NAME[self.train_code]
-        self.train_number = pay["trnNo"]
+        self.train_number = pay.get("trnNo")
 
-        self.dep_date = pay["dptDt"]
-        self.dep_time = pay["dptTm"]
-        self.dep_station_code = pay["dptRsStnCd"]
+        self.dep_date = pay.get("dptDt")
+        self.dep_time = pay.get("dptTm")
+        self.dep_station_code = pay.get("dptRsStnCd")
         self.dep_station_name = STATION_NAME[self.dep_station_code]
 
-        self.arr_time = pay["arvTm"]
-        self.arr_station_code = pay["arvRsStnCd"]
+        self.arr_time = pay.get("arvTm")
+        self.arr_station_code = pay.get("arvRsStnCd")
         self.arr_station_name = STATION_NAME[self.arr_station_code]
 
-        self.payment_date = pay["iseLmtDt"]
-        self.payment_time = pay["iseLmtTm"]
-        self.paid = pay["stlFlg"] == "Y"
+        self.payment_date = pay.get("iseLmtDt")
+        self.payment_time = pay.get("iseLmtTm")
+        self.paid = pay.get("stlFlg") == "Y"
+        self.return_possible = pay.get("retPsbFlg") == "Y"
 
         self._tickets = tickets
 
@@ -317,7 +318,7 @@ class SRTReservation:
             f"{self.total_cost}원({self.seat_count}석)"
         )
 
-        if not self.paid:
+        if not self.paid and self.return_possible:
             base += (
                 f", 구입기한 {self.payment_date[4:6]}월 {self.payment_date[6:8]}일 "
                 f"{self.payment_time[:2]}:{self.payment_time[2:4]}"
@@ -762,7 +763,7 @@ class SRT:
         self,
         train: SRTTrain,
         passengers: list[Passenger] | None = None,
-        special_seat: SeatType = SeatType.GENERAL_FIRST,
+        option: SeatType = SeatType.GENERAL_FIRST,
         window_seat: bool | None = None,
     ) -> SRTReservation:
         """Reserve a train.
@@ -770,7 +771,7 @@ class SRT:
         Args:
             train: Train to reserve
             passengers: List of passengers (default: 1 adult)
-            special_seat: Seat type preference
+            option: Seat type preference
             window_seat: Whether to prefer window seats
 
         Returns:
@@ -784,7 +785,7 @@ class SRT:
             RESERVE_JOBID["PERSONAL"],
             train,
             passengers,
-            special_seat,
+            option,
             window_seat=window_seat,
         )
 
@@ -792,7 +793,7 @@ class SRT:
         self,
         train: SRTTrain,
         passengers: list[Passenger] | None = None,
-        special_seat: SeatType = SeatType.GENERAL_FIRST,
+        option: SeatType = SeatType.GENERAL_FIRST,
         mblPhone: str | None = None,
     ) -> SRTReservation:
         """Request waitlist reservation.
@@ -800,7 +801,7 @@ class SRT:
         Args:
             train: Train to waitlist
             passengers: List of passengers (default: 1 adult) 
-            special_seat: Seat type preference
+            option: Seat type preference
             mblPhone: Phone number for notifications
 
         Returns:
@@ -814,7 +815,7 @@ class SRT:
             RESERVE_JOBID["STANDBY"],
             train,
             passengers,
-            special_seat,
+            option,
             mblPhone=mblPhone
         )
 
@@ -823,7 +824,7 @@ class SRT:
         jobid: str,
         train: SRTTrain,
         passengers: list[Passenger] | None = None,
-        special_seat: SeatType = SeatType.GENERAL_FIRST,
+        option: SeatType = SeatType.GENERAL_FIRST,
         mblPhone: str | None = None,
         window_seat: bool | None = None,
     ) -> SRTReservation:
@@ -833,7 +834,7 @@ class SRT:
             jobid: Type of reservation (personal/standby)
             train: Train to reserve
             passengers: List of passengers
-            special_seat: Seat type preference
+            option: Seat type preference
             mblPhone: Phone number for standby notifications
             window_seat: Window seat preference for personal reservations
 
@@ -862,7 +863,7 @@ class SRT:
             SeatType.SPECIAL_ONLY: True,
             SeatType.GENERAL_FIRST: not train.general_seat_available(),
             SeatType.SPECIAL_FIRST: train.special_seat_available()
-        }[special_seat]
+        }[option]
 
         data = {
             "jobId": jobid,

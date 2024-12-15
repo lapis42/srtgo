@@ -13,10 +13,9 @@
 - 본 프로그램은 SRT 및 KTX 기차표 예매를 자동화하는 매크로입니다.
 - 예약이 완료되면 텔레그램 알림을 전송합니다.
   - [Bot Token 및 Chat Id 얻기](https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0).
-- 예매 확인/취소의 경우 SRT는 모든 티켓을, KTX는 결제하지 않은 티켓만 확인 취소 할 수 있습니다.
-- SRT의 경우 신용카드 정보를 입력해두면, 예매 직후에 결제되도록 할 수 있습니다.
+- 신용카드 정보를 입력해두면, 예매 직후에 결제되도록 할 수 있습니다.
 - 자주 사용하는 역을 지정할 수 있습니다.
-- 어린이 혹은 경로우대 예매 설정을 할 수 있습니다.
+- 어린이 혹은 우대 예매 설정을 할 수 있습니다.
 
 ---
 > [!WARNING]
@@ -29,13 +28,18 @@
 - This program is a macro that automates the reservation of SRT and KTX train tickets.
 - After the reservation is completed, a Telegram notification will be sent.
 - In the case of reservation confirmation/cancellation, for SRT, all tickets can be confirmed or canceled, while for KTX, only unpaid tickets can be confirmed or canceled.
-- For SRT, you can enter your credit card information to be charged immediately after you make your reservation.
+- You can enter your credit card information to be charged immediately after you make your reservation.
 - You can specify your favorite stations.
 - You can set up child or accessible ticketing.
 
 ## Installation / Update
 ```bash
 pip install srtgo -U
+```
+
+- Install beta version (might be unstable)
+```bash
+pip install git+https://github.com/lapis42/srtgo -U
 ```
 
 ## Using SRTgo
@@ -52,6 +56,7 @@ pip install srtgo -U
    텔레그램 설정
    카드 설정
    역 설정
+   예매 옵션 설정
    나가기
 
 [?] 열차 선택 (↕:이동, Enter: 선택, Ctrl-C: 취소): SRT
@@ -160,6 +165,4 @@ pip install srtgo -U
 ```
 
 ## Acknowledgments
-- This project heavily depends on [SRT](https://github.com/ryanking13/SRT) by ryanking13 and [korail2](https://github.com/carpedm20/korail2) by carpedm20.
-- The recent changes also rely on [SRT](https://github.com/Monsteel/SRT) by Monsteel.
-
+- This project includes code from [SRT](https://github.com/ryanking13/SRT) by ryanking13, licensed under the MIT License, and [korail2](https://github.com/carpedm20/korail2) by carpedm20, licensed under the BSD License.

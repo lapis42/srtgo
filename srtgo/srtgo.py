@@ -15,11 +15,11 @@ from .srt import SRTResponseError
 from .srt import SeatType
 from .srt import Adult, Child, Senior, Disability1To3, Disability4To6
 
-from korail2 import Korail
-from korail2 import AdultPassenger, ChildPassenger, SeniorPassenger, ReserveOption
-from korail2 import Passenger as KorailPassenger
-from korail2 import TrainType
-from korail2 import KorailError
+from .ktx import Korail
+from .ktx import AdultPassenger, ChildPassenger, SeniorPassenger, Disability1To3Passenger, Disability4To6Passenger
+from .ktx import TrainType
+from .ktx import ReserveOption
+from .ktx import KorailError
 
 
 STATIONS = {
@@ -51,13 +51,6 @@ RailType = Union[str, None]
 ChoiceType = Union[int, None]
 
 
-class Disability1To3Passenger(KorailPassenger):
-    def __init__(self, count=1, discount_type='111', card='', card_no='', card_pw=''):
-        KorailPassenger.__init_internal__(self, '1', count, discount_type, card, card_no, card_pw)   
-
-class Disability4To6Passenger(KorailPassenger):
-    def __init__(self, count=1, discount_type='112', card='', card_no='', card_pw=''):
-        KorailPassenger.__init_internal__(self, '1', count, discount_type, card, card_no, card_pw)   
 
 
 @click.command()
@@ -346,28 +339,33 @@ def reserve(rail_type="SRT", debug=False):
     if info["date"] == today and int(info["time"]) < int(this_time):
         info["time"] = this_time
 
+    adult = Adult if rail_type == 'SRT' else AdultPassenger
+    child = Child if rail_type == 'SRT' else ChildPassenger
+    senior = Senior if rail_type == 'SRT' else SeniorPassenger
+    disability1to3 = Disability1To3 if rail_type == 'SRT' else Disability1To3Passenger
+    disability4to6 = Disability4To6 if rail_type == 'SRT' else Disability4To6Passenger
     passengers = []
     if info["passenger"] > 0:
-        passengers.append((Adult if rail_type == "SRT" else AdultPassenger)(info["passenger"]))
+        passengers.append(adult(info["passenger"]))
     if "child" in options and info["child"] > 0:
-        passengers.append((Child if rail_type == "SRT" else ChildPassenger)(info["child"]))
+        passengers.append(child(info["child"]))
     if "senior" in options and info["senior"] > 0:
-        passengers.append((Senior if rail_type == "SRT" else SeniorPassenger)(info["senior"]))
+        passengers.append(senior(info["senior"]))
     if "disability1to3" in options and info["disability1to3"] > 0:
-        passengers.append((Disability1To3 if rail_type == "SRT" else Disability1To3Passenger)(info["disability1to3"]))
+        passengers.append(disability1to3(info["disability1to3"]))
     if "disability4to6" in options and info["disability4to6"] > 0:
-        passengers.append((Disability4To6 if rail_type == "SRT" else Disability4To6Passenger)(info["disability4to6"]))
+        passengers.append(disability4to6(info["disability4to6"]))
     
     if len(passengers) == 0:
         print(colored("승객수는 0이 될 수 없습니다", "green", "on_red") + "\n")
         return
     
     PASSENGER_TYPE = {
-        Adult if rail_type == "SRT" else AdultPassenger: '어른/청소년',
-        Child if rail_type == "SRT" else ChildPassenger: '어린이',
-        Senior if rail_type == "SRT" else SeniorPassenger: '경로우대',
-        Disability1To3 if rail_type == "SRT" else Disability1To3Passenger: '1~3급 장애인',
-        Disability4To6 if rail_type == "SRT" else Disability4To6Passenger: '4~6급 장애인',
+        adult   : '어른/청소년',
+        child   : '어린이',
+        senior  : '경로우대',
+        disability1to3: '1~3급 장애인',
+        disability4to6: '4~6급 장애인',
     }
     msg_passengers = [f'{PASSENGER_TYPE[type(passenger)]} {passenger.count}명' for passenger in passengers]
     print(*msg_passengers)
@@ -379,7 +377,7 @@ def reserve(rail_type="SRT", debug=False):
             "arr": info["arrival"],
             "date": info["date"],
             "time": info["time"],
-            "passengers": [Adult(len(passengers)) if rail_type == "SRT" else AdultPassenger(len(passengers))],
+            "passengers": [adult(len(passengers))],
         }
         
         if rail_type == "SRT":
@@ -399,8 +397,7 @@ def reserve(rail_type="SRT", debug=False):
     try:
         trains = search_train(rail, rail_type, info)
     except Exception as err:
-        print(str(err))
-        return
+        raise err
 
     if not trains:
         print(colored("예약 가능한 열차가 없습니다", "green", "on_red") + "\n")
@@ -411,9 +408,8 @@ def reserve(rail_type="SRT", debug=False):
     q_choice = [
         inquirer.Checkbox("trains", message="예약할 열차 선택 (↕:이동, Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)", choices=[(train.__repr__(), i) for i, train in enumerate(trains)], default=None),
         inquirer.List("type", message="선택 유형", choices=[("일반실 우선", seat_type.GENERAL_FIRST), ("일반실만", seat_type.GENERAL_ONLY), ("특실 우선", seat_type.SPECIAL_FIRST), ("특실만", seat_type.SPECIAL_ONLY)]),
+        inquirer.Confirm("pay", message="예매 시 카드 결제", default=False)
     ]
-    if rail_type == "SRT":
-        q_choice.append(inquirer.Confirm("pay", message="예매 시 카드 결제", default=False))
     
     choice = inquirer.prompt(q_choice)
     if choice is None or not choice["trains"]:
@@ -426,19 +422,18 @@ def reserve(rail_type="SRT", debug=False):
     def _reserve(train):
         tgprintf = get_telegram()
 
+        reserve = rail.reserve(train, passengers=passengers, option=choice["type"])
         if rail_type == "SRT":
-            reserve = rail.reserve(train, passengers=passengers, special_seat=choice["type"])
             msg = f"{reserve}\n" + "\n".join(str(ticket) for ticket in reserve.tickets)
-            print(colored(f"\n\n\n🎊예매 성공!!!🎊\n{msg}", "red", "on_green"))
-            
-            if choice["pay"] and pay_card(rail, reserve):
-                print(colored("🎊결제 성공!!!🎊", "green", "on_red"), end="")
-            print(colored("\n\n", "red", "on_green"))
         else:
-            reserve = rail.reserve(train, passengers=passengers, option=choice["type"])
             msg = str(reserve).strip()
-            print(colored(f"\n\n\n🎊예매 성공!!!🎊\n{msg}\n\n", "red", "on_green"))
-        
+
+        print(colored(f"\n\n\n🎊예매 성공!!!🎊\n{msg}\n\n", "red", "on_green"))
+
+        if choice["pay"] and pay_card(rail, reserve):
+            print(colored("🎊결제 성공!!!🎊", "green", "on_red"), end="")
+        print(colored("\n\n", "red", "on_green"))
+    
         asyncio.run(tgprintf(msg))
 
     i_try = 0
@@ -503,15 +498,20 @@ def check_reservation(rail_type="SRT"):
         reservations = rail.get_reservations() if rail_type == "SRT" else rail.reservations()
         tickets = [] if rail_type == "SRT" else rail.tickets()
 
+        all_reservations = []
+        for t in tickets:
+            t.is_ticket = True
+            all_reservations.append(t)
+        for r in reservations:
+            r.is_ticket = False
+            all_reservations.append(r)
+
         if not reservations and not tickets:
             print(colored("예약 내역이 없습니다", "green", "on_red") + "\n")
             return
 
-        if tickets:
-            print("[ 발권 내역 ]\n" + "\n".join(map(str, tickets)) + "\n")
-
         cancel_choices = [
-            (str(reservation), i) for i, reservation in enumerate(reservations)
+            (str(reservation), i) for i, reservation in enumerate(all_reservations)
         ] + [("텔레그램으로 예매 정보 전송", -2), ("돌아가기", -1)]
         
         cancel = inquirer.list_input(
@@ -524,11 +524,9 @@ def check_reservation(rail_type="SRT"):
 
         if cancel == -2:
             out = []
-            if tickets:
-                out.append("[ 발권 내역 ]\n" + "\n".join(map(str, tickets)))
-            if reservations:
+            if all_reservations:
                 out.append("[ 예매 내역 ]")
-                for reservation in reservations:
+                for reservation in all_reservations:
                     out.append(f"🚅{reservation}")
                     if rail_type == "SRT":
                         out.extend(map(str, reservation.tickets))
@@ -540,7 +538,10 @@ def check_reservation(rail_type="SRT"):
 
         if inquirer.confirm(message=colored("정말 취소하시겠습니까", "green", "on_red")):
             try:
-                rail.cancel(reservations[cancel])
+                if all_reservations[cancel].is_ticket:
+                    rail.refund(all_reservations[cancel])
+                else:
+                    rail.cancel(all_reservations[cancel])
             except Exception as err:
                 print(err)
             return
