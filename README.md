@@ -27,7 +27,7 @@
 
 - This program is a macro that automates the reservation of SRT and KTX train tickets.
 - After the reservation is completed, a Telegram notification will be sent.
-- In the case of reservation confirmation/cancellation, for SRT, all tickets can be confirmed or canceled, while for KTX, only unpaid tickets can be confirmed or canceled.
+- Tickets can be confirmed or canceled.
 - You can enter your credit card information to be charged immediately after you make your reservation.
 - You can specify your favorite stations.
 - You can set up child or accessible ticketing.
