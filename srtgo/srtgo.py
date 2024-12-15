@@ -425,15 +425,15 @@ def reserve(rail_type="SRT", debug=False):
         q_choice.append(inquirer.List("type", message="선택 유형", choices=[("일반실만", seat_type.GENERAL_ONLY), ("특실만", seat_type.SPECIAL_ONLY)]))
     q_choice.append(inquirer.Confirm("pay", message="예매 시 카드 결제", default=False))
 
-    choice = inquirer.prompt(q_choice)
-    if choice is None:
+    options = inquirer.prompt(q_choice)
+    if options is None:
         print(colored("예매 정보 입력 중 취소되었습니다", "green", "on_red") + "\n")
         return
 
     def _reserve(train):
         tgprintf = get_telegram()
 
-        reserve = rail.reserve(train, passengers=passengers, option=choice["type"])
+        reserve = rail.reserve(train, passengers=passengers, option=options["type"])
         if rail_type == "SRT":
             msg = f"{reserve}\n" + "\n".join(str(ticket) for ticket in reserve.tickets)
         else:
@@ -441,7 +441,7 @@ def reserve(rail_type="SRT", debug=False):
 
         print(colored(f"\n\n\n🎊예매 성공!!!🎊\n{msg}\n\n", "red", "on_green"))
 
-        if choice["pay"] and pay_card(rail, reserve):
+        if options["pay"] and pay_card(rail, reserve):
             print(colored("🎊결제 성공!!!🎊", "green", "on_red"), end="")
         print(colored("\n\n", "red", "on_green"))
     
@@ -458,7 +458,7 @@ def reserve(rail_type="SRT", debug=False):
             if do_search:
                 trains = search_train(rail, rail_type, info)
                 for i in choice["trains"]:
-                    if _is_seat_available(trains[i], choice["type"], rail_type):
+                    if _is_seat_available(trains[i], options["type"], rail_type):
                         _reserve(trains[i])
                         return
             else:
