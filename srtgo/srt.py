@@ -87,7 +87,7 @@ API_ENDPOINTS = {
     "search_schedule": f"{SRT_MOBILE}/ara/selectListAra10007_n.do",
     "reserve": f"{SRT_MOBILE}/arc/selectListArc05013_n.do",
     "tickets": f"{SRT_MOBILE}/atc/selectListAtc14016_n.do",
-    "ticket_info": f"{SRT_MOBILE}/ard/selectListArd02019_n.do?",
+    "ticket_info": f"{SRT_MOBILE}/ard/selectListArd02017_n.do?",
     "cancel": f"{SRT_MOBILE}/ard/selectListArd02045_n.do",
     "standby_option": f"{SRT_MOBILE}/ata/selectListAta01135_n.do",
     "payment": f"{SRT_MOBILE}/ata/selectListAta09036_n.do",

@@ -371,6 +371,10 @@ def reserve(rail_type="SRT", debug=False):
         print(colored("승객수는 0이 될 수 없습니다", "green", "on_red") + "\n")
         return
     
+    if sum(passenger.count for passenger in passengers) >= 10:
+        print(colored("승객수는 10명을 초과할 수 없습니다", "green", "on_red") + "\n")
+        return
+
     PASSENGER_TYPE = {
         adult   : '어른/청소년',
         child   : '어린이',
