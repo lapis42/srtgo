@@ -1,24 +1,37 @@
+from datetime import datetime, timedelta
+from json.decoder import JSONDecodeError
+from random import gammavariate
+from termcolor import colored
+from typing import Awaitable, Callable, List, Optional, Tuple, Union
+
 import asyncio
 import click
 import inquirer
 import keyring
 import telegram
 import time
-from datetime import datetime, timedelta
-from random import gammavariate
-from termcolor import colored
-from typing import Awaitable, Callable, List, Optional, Tuple, Union
-
-from .srt import (
-    SRT, SRTResponseError, SeatType,
-    Adult, Child, Senior, Disability1To3, Disability4To6
-)
 
 from .ktx import (
-    Korail, KorailError,
-    AdultPassenger, ChildPassenger, SeniorPassenger,
-    Disability1To3Passenger, Disability4To6Passenger,
-    TrainType, ReserveOption
+    Korail,
+    KorailError,
+    ReserveOption,
+    TrainType,
+    AdultPassenger,
+    ChildPassenger, 
+    SeniorPassenger,
+    Disability1To3Passenger,
+    Disability4To6Passenger
+)
+
+from .srt import (
+    SRT,
+    SRTResponseError,
+    SeatType,
+    Adult,
+    Child,
+    Senior,
+    Disability1To3,
+    Disability4To6
 )
 
 
@@ -453,36 +466,50 @@ def reserve(rail_type="SRT", debug=False):
         try:
             i_try += 1
             elapsed_time = time.time() - start_time
-            print(f"\r예매 대기 중... {WAITING_BAR[i_try % len(WAITING_BAR)]} {i_try:4d} ({int(elapsed_time//3600):02d}:{int(elapsed_time%3600//60):02d}:{int(elapsed_time%60):02d})", end="", flush=True)
+            hours, remainder = divmod(int(elapsed_time), 3600)
+            minutes, seconds = divmod(remainder, 60)
+            print(f"\r예매 대기 중... {WAITING_BAR[i_try & 3]} {i_try:4d} ({hours:02d}:{minutes:02d}:{seconds:02d})", end="", flush=True)
 
             if do_search:
                 trains = search_train(rail, rail_type, info)
                 for i in choice["trains"]:
-                    if _is_seat_available(trains[i], options["type"], rail_type):
-                        _reserve(trains[i])
+                    train = trains[i]
+                    if _is_seat_available(train, options["type"], rail_type):
+                        _reserve(train)
                         return
             else:
                 _reserve(train)
                 return
+            sleep()
 
-            time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
-        
-        except (SRTResponseError, KorailError) as ex:
-            if isinstance(ex, SRTResponseError) and ex.msg.startswith("정상적인 경로로 접근 부탁드립니다"):
-                if debug:
-                    print(ex)
+        except SRTResponseError as ex:
+            msg = ex.msg
+            if "정상적인 경로로 접근 부탁드립니다" in msg:
+                debug and print(ex)
                 rail.clear()
-            elif isinstance(ex, SRTResponseError) and ex.msg.startswith("로그인 후 사용하십시오"):
+            elif "로그인 후 사용하십시오" in msg:
                 rail.login()
-            elif not ex.msg.startswith(("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다", "Sold out")):
+            elif not any(err in msg for err in ("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다")):
                 if not _handle_error(ex):
                     return
-            time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
+            sleep()
 
+        except KorailError as ex:
+            if "Sold out" not in ex.msg and not _handle_error(ex):
+                return
+            sleep()
+
+        except JSONDecodeError:
+            debug and print('JSONDecodeError')
+            sleep()
+            
         except Exception as ex:
             if not _handle_error(ex):
                 return
-            time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
+            sleep()
+
+def sleep():
+    time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
 
 def _handle_error(ex):
     msg = f"\nException: {ex}, Type: {type(ex)}, Args: {ex.args}, Message: {ex.msg if hasattr(ex, 'msg') else 'No message attribute'}"
