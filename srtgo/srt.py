@@ -87,10 +87,13 @@ API_ENDPOINTS = {
     "search_schedule": f"{SRT_MOBILE}/ara/selectListAra10007_n.do",
     "reserve": f"{SRT_MOBILE}/arc/selectListArc05013_n.do",
     "tickets": f"{SRT_MOBILE}/atc/selectListAtc14016_n.do",
-    "ticket_info": f"{SRT_MOBILE}/ard/selectListArd02017_n.do?",
+    "ticket_info": f"{SRT_MOBILE}/ard/selectListArd02019_n.do",
     "cancel": f"{SRT_MOBILE}/ard/selectListArd02045_n.do",
     "standby_option": f"{SRT_MOBILE}/ata/selectListAta01135_n.do",
     "payment": f"{SRT_MOBILE}/ata/selectListAta09036_n.do",
+    "reserve_info": f"{SRT_MOBILE}/atc/getListAtc14087.do",
+    "reserve_info_referer": f"{SRT_MOBILE}/common/ATC/ATC0201L/view.do?pnrNo=",
+    "refund": f"{SRT_MOBILE}/atc/selectListAtc02063_n.do",
 }
 
 
@@ -300,7 +303,7 @@ class SRTReservation:
         self.payment_date = pay.get("iseLmtDt")
         self.payment_time = pay.get("iseLmtTm")
         self.paid = pay.get("stlFlg") == "Y"
-        self.return_possible = pay.get("retPsbFlg") == "Y"
+        self.is_running = "tkSpecNum" not in train
 
         self._tickets = tickets
 
@@ -318,11 +321,15 @@ class SRTReservation:
             f"{self.total_cost}원({self.seat_count}석)"
         )
 
-        if not self.paid and self.return_possible:
+        if not self.paid:
             base += (
                 f", 구입기한 {self.payment_date[4:6]}월 {self.payment_date[6:8]}일 "
                 f"{self.payment_time[:2]}:{self.payment_time[2:4]}"
             )
+        
+        if self.is_running:
+            base += f" (운행중)"
+
         return base
 
     @property
@@ -1130,6 +1137,38 @@ class SRT:
         if response["outDataSets"]["dsOutput0"][0]["strResult"] == "FAIL":
             raise SRTResponseError(response["outDataSets"]["dsOutput0"][0]["msgTxt"])
 
+        return True
+    
+    def reserve_info(self, reservation: SRTReservation | int) -> bool:
+        referer = API_ENDPOINTS["reserve_info_referer"] + reservation.reservation_number
+        self._session.headers.update({"Referer": referer})
+        r = self._session.post(url=API_ENDPOINTS["reserve_info"])
+        
+        response = json.loads(r.text)
+        if response.get("ErrorCode") == "0" and response.get("ErrorMsg") == "":
+            return response.get("outDataSets").get("dsOutput1")[0]
+        else:
+            raise SRTResponseError(response.get("ErrorMsg"))
+    
+    def refund(self, reservation: SRTReservation | int) -> bool:
+        info = self.reserve_info(reservation)
+        data = {
+            "pnr_no": info.get("pnrNo"),
+            "cnc_dmn_cont": "승차권 환불로 취소",
+            "saleDt": info.get("ogtkSaleDt"),
+            "saleWctNo": info.get("ogtkSaleWctNo"),
+            "saleSqno": info.get("ogtkSaleSqno"),
+            "tkRetPwd": info.get("ogtkRetPwd"),
+            "psgNm": info.get("buyPsNm"),
+        }
+
+        r = self._session.post(url=API_ENDPOINTS["refund"], data=data)
+        response = SRTResponseData(r.text)
+
+        if not response.success():
+            raise SRTResponseError(response.message())
+
+        self._log(response.message())
         return True
     
     def clear(self):

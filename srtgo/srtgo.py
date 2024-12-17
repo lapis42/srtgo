@@ -568,7 +568,10 @@ def check_reservation(rail_type="SRT"):
             t.is_ticket = True
             all_reservations.append(t)
         for r in reservations:
-            r.is_ticket = False
+            if hasattr(r, "paid") and r.paid:
+                r.is_ticket = True
+            else:
+                r.is_ticket = False
             all_reservations.append(r)
 
         if not reservations and not tickets:
@@ -608,7 +611,7 @@ def check_reservation(rail_type="SRT"):
                 else:
                     rail.cancel(all_reservations[cancel])
             except Exception as err:
-                print(err)
+                raise err
             return
 
 
