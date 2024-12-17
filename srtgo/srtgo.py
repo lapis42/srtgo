@@ -518,7 +518,7 @@ def reserve(rail_type="SRT", debug=False):
             _sleep()
 
         except KorailError as ex:
-            if "Sold out" not in ex.msg and not _handle_error(ex):
+            if not any(msg in str(ex) for msg in ("Sold out", "잔여석없음")) and not _handle_error(ex):
                 return
             _sleep()
 

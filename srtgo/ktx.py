@@ -276,7 +276,7 @@ class NoResultsError(KorailError):
         super().__init__("No Results", code)
 
 class SoldOutError(KorailError):
-    codes = {'ERR211161'}
+    codes = {'IRT010110', 'ERR211161'}
     def __init__(self, code=None):
         super().__init__("Sold out", code)
     
