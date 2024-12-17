@@ -15,12 +15,14 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "prompt_toolkit >=3",
-    "inquirer",
-    "python-telegram-bot",
-    "termcolor",
     "click",
-    "keyring",
+    "inquirer",
+    "keyring", 
+    "PyCryptodome",
+    "prompt_toolkit>=3",
+    "python-telegram-bot",
+    "requests",
+    "termcolor"
 ]
 dynamic = ["version"]
 [tool.setuptools_scm]
