@@ -472,10 +472,10 @@ def reserve(rail_type="SRT", debug=False):
         reserve = rail.reserve(train, passengers=passengers, option=options["type"])
         msg = (f"{reserve}\n" + "\n".join(str(ticket) for ticket in reserve.tickets)) if is_srt else str(reserve).strip()
 
-        print(colored(f"\n\n🎊예매 성공!!!🎊\n{msg}\n", "red", "on_green"))
+        print(colored(f"\n\n🎫 🎉 예매 성공!!! 🎉 🎫\n{msg}\n", "red", "on_green"))
 
         if options["pay"] and pay_card(rail, reserve):
-            print(colored("\n\n🎊결제 성공!!!🎊\n\n", "green", "on_red"), end="")
+            print(colored("\n\n💳 ✨ 결제 성공!!! ✨ 💳\n\n", "green", "on_red"), end="")
             msg += "\n결제 완료"
 
         tgprintf = get_telegram()
@@ -490,7 +490,7 @@ def reserve(rail_type="SRT", debug=False):
             elapsed_time = time.time() - start_time
             hours, remainder = divmod(int(elapsed_time), 3600)
             minutes, seconds = divmod(remainder, 60)
-            print(f"\r예매 대기 중... {WAITING_BAR[i_try & 3]} {i_try:4d} ({hours:02d}:{minutes:02d}:{seconds:02d})", 
+            print(f"\r예매 대기 중... {WAITING_BAR[i_try & 3]} {i_try:4d} ({hours:02d}:{minutes:02d}:{seconds:02d}) ",
                   end="", flush=True)
 
             if do_search:
@@ -507,25 +507,30 @@ def reserve(rail_type="SRT", debug=False):
 
         except SRTResponseError as ex:
             msg = ex.msg
+            debug and print(msg)
             if "정상적인 경로로 접근 부탁드립니다" in msg:
-                debug and print(ex)
                 rail.clear()
             elif "로그인 후 사용하십시오" in msg:
+                rail.is_login = False
                 rail.login()
+                if not rail.is_login:
+                    if not _handle_error(ex):
+                        return
             elif not any(err in msg for err in ("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다")):
                 if not _handle_error(ex):
                     return
             _sleep()
 
         except KorailError as ex:
+            debug and print(ex)
             if not any(msg in str(ex) for msg in ("Sold out", "잔여석없음")) and not _handle_error(ex):
                 return
             _sleep()
 
-        except JSONDecodeError:
-            debug and print('JSONDecodeError')
+        except JSONDecodeError as ex:
+            debug and print(ex)
             _sleep()
-            
+
         except Exception as ex:
             if not _handle_error(ex):
                 return

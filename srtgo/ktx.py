@@ -309,8 +309,8 @@ class NetFunnelHelper:
     }
 
     def __init__(self):
-        self.session = requests.session()
-        self.session.headers.update(self.DEFAULT_HEADERS)
+        self._session = requests.session()
+        self._session.headers.update(self.DEFAULT_HEADERS)
         self._cached_key = None
         self._last_fetch_time = 0
         self._cache_ttl = 50  # 50 seconds
@@ -356,7 +356,7 @@ class NetFunnelHelper:
 
     def _make_request(self, opcode: str):
         params = self._build_params(self.OP_CODE[opcode])
-        response = self._parse(self.session.get(self.NETFUNNEL_URL, params=params).text)
+        response = self._parse(self._session.get(self.NETFUNNEL_URL, params=params).text)
         return response.get("status"), response.get("key"), response.get("nwait")
 
     def _build_params(self, opcode: str, key: str = None) -> dict:
@@ -429,7 +429,7 @@ class Korail:
 
         data = {
             'Device': self._device,
-            'Version': '231231001',
+            'Version': self._version,
             'Key': self._key,
             'txtMemberNo': self.korail_id,
             'txtPwd': self.__enc_password(self.korail_pw),
