@@ -25,7 +25,7 @@ from .ktx import (
 
 from .srt import (
     SRT,
-    SRTResponseError,
+    SRTError,
     SeatType,
     Adult,
     Child,
@@ -505,7 +505,7 @@ def reserve(rail_type="SRT", debug=False):
                 return
             _sleep()
 
-        except SRTResponseError as ex:
+        except SRTError as ex:
             msg = ex.msg
             debug and print(msg)
             if "정상적인 경로로 접근 부탁드립니다" in msg:
