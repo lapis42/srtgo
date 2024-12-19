@@ -86,8 +86,8 @@ def srtgo(debug=False):
 
     ACTIONS = {
         1: lambda rt: reserve(rt, debug),
-        2: check_reservation,
-        3: set_login,
+        2: lambda rt: check_reservation(rt, debug),
+        3: lambda rt: set_login(rt, debug),
         4: lambda _: set_telegram(),
         5: lambda _: set_card(),
         6: set_station,
@@ -255,7 +255,7 @@ def pay_card(rail, reservation) -> bool:
     return False
 
 
-def set_login(rail_type="SRT"):
+def set_login(rail_type="SRT", debug=False):
     credentials = {
         "id": keyring.get_password(rail_type, "id") or "",
         "pass": keyring.get_password(rail_type, "pass") or ""
@@ -269,20 +269,20 @@ def set_login(rail_type="SRT"):
         return False
 
     try:
-        SRT(login_info["id"], login_info["pass"]) if rail_type == "SRT" else Korail(
-            login_info["id"], login_info["pass"])
+        SRT(login_info["id"], login_info["pass"], verbose=debug) if rail_type == "SRT" else Korail(
+            login_info["id"], login_info["pass"], verbose=debug)
         
         keyring.set_password(rail_type, "id", login_info["id"])
         keyring.set_password(rail_type, "pass", login_info["pass"])
         keyring.set_password(rail_type, "ok", "1")
         return True
-    except SRTResponseError as err:
+    except SRTError as err:
         print(err)
         keyring.delete_password(rail_type, "ok")
         return False
 
 
-def login(rail_type="SRT"):
+def login(rail_type="SRT", debug=False):
     if keyring.get_password(rail_type, "id") is None or keyring.get_password(rail_type, "pass") is None:
         set_login(rail_type)
     
@@ -290,11 +290,11 @@ def login(rail_type="SRT"):
     password = keyring.get_password(rail_type, "pass")
     
     rail = SRT if rail_type == "SRT" else Korail
-    return rail(user_id, password)
+    return rail(user_id, password, verbose=debug)
 
 
 def reserve(rail_type="SRT", debug=False):
-    rail = login(rail_type)
+    rail = login(rail_type, debug=debug)
     is_srt = rail_type == "SRT"
 
     # Get date, time, stations, and passenger info
@@ -426,15 +426,20 @@ def reserve(rail_type="SRT", debug=False):
 
     trains = rail.search_train(**params)
 
+    def train_decorator(train):
+        msg = train.__repr__()
+        return msg.replace('예약가능', colored('가능', "green")) \
+                 .replace('가능', colored('가능', "green")) \
+                 .replace('신청하기', colored('가능', "green"))
+
     if not trains:
         print(colored("예약 가능한 열차가 없습니다", "green", "on_red") + "\n")
         return
 
-
     # Get train selection
     q_choice = [
         inquirer.Checkbox("trains", message="예약할 열차 선택 (↕:이동, Space: 선택, Enter: 완료, Ctrl-A: 전체선택, Ctrl-R: 선택해제, Ctrl-C: 취소)", 
-                         choices=[(train.__repr__(), i) for i, train in enumerate(trains)], default=None),
+                         choices=[(train_decorator(train), i) for i, train in enumerate(trains)], default=None),
     ]
     
     choice = inquirer.prompt(q_choice)
@@ -507,31 +512,39 @@ def reserve(rail_type="SRT", debug=False):
 
         except SRTError as ex:
             msg = ex.msg
-            debug and print(msg)
             if "정상적인 경로로 접근 부탁드립니다" in msg:
+                if debug:
+                    error_msg = f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
+                    print(error_msg)
                 rail.clear()
             elif "로그인 후 사용하십시오" in msg:
+                if debug:
+                    error_msg = f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
+                    print(error_msg)
                 rail.is_login = False
                 rail.login()
                 if not rail.is_login:
                     if not _handle_error(ex):
                         return
-            elif not any(err in msg for err in ("잔여석없음", "사용자가 많아 접속이 원활하지 않습니다")):
+            elif not any(err in msg for err in ("잔여석없음", "예약대기자한도수초과", "사용자가 많아 접속이 원활하지 않습니다")):
                 if not _handle_error(ex):
                     return
             _sleep()
 
         except KorailError as ex:
-            debug and print(ex)
-            if not any(msg in str(ex) for msg in ("Sold out", "잔여석없음")) and not _handle_error(ex):
+            if not any(msg in str(ex) for msg in ("Sold out", "잔여석없음", "예약대기자한도수초과")) and not _handle_error(ex):
                 return
             _sleep()
 
         except JSONDecodeError as ex:
-            debug and print(ex)
+            if debug:
+                error_msg = f"Exception: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {ex.msg}"
+                print(error_msg)
             _sleep()
 
         except Exception as ex:
+            if debug:
+                print("\nUndefined exception")
             if not _handle_error(ex):
                 return
             _sleep()
@@ -548,21 +561,25 @@ def _handle_error(ex):
 
 def _is_seat_available(train, seat_type, rail_type):
     if rail_type == "SRT":
+        if not train.seat_available():
+            return train.reserve_standby_available()
         if seat_type in [SeatType.GENERAL_FIRST, SeatType.SPECIAL_FIRST]:
             return train.seat_available()
-        elif seat_type == SeatType.GENERAL_ONLY:
+        if seat_type == SeatType.GENERAL_ONLY:
             return train.general_seat_available()
         return train.special_seat_available()
     else:
+        if not train.has_seat():
+            return train.has_waiting_list()
         if seat_type in [ReserveOption.GENERAL_FIRST, ReserveOption.SPECIAL_FIRST]:
             return train.has_seat()
-        elif seat_type == ReserveOption.GENERAL_ONLY:
+        if seat_type == ReserveOption.GENERAL_ONLY:
             return train.has_general_seat()
         return train.has_special_seat()
 
 
-def check_reservation(rail_type="SRT"):
-    rail = login(rail_type)
+def check_reservation(rail_type="SRT", debug=False):
+    rail = login(rail_type, debug=debug)
 
     while True:
         reservations = rail.get_reservations() if rail_type == "SRT" else rail.reservations()

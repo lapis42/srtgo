@@ -322,10 +322,13 @@ class SRTReservation:
         )
 
         if not self.paid:
-            base += (
-                f", 구입기한 {self.payment_date[4:6]}월 {self.payment_date[6:8]}일 "
-                f"{self.payment_time[:2]}:{self.payment_time[2:4]}"
-            )
+            if self.payment_date and self.payment_time:
+                base += (
+                    f", 구입기한 {self.payment_date[4:6]}월 {self.payment_date[6:8]}일 "
+                    f"{self.payment_time[:2]}:{self.payment_time[2:4]}"
+                )
+            else:
+                base += ", 예약대기"
         
         if self.is_running:
             base += f" (운행중)"
@@ -422,7 +425,8 @@ class SRTTrain(Train):
         # Seat availability info
         self.general_seat_state = data["gnrmRsvPsbStr"]
         self.special_seat_state = data["sprmRsvPsbStr"]
-        self.reserve_wait_possible_code = data["rsvWaitPsbCd"]
+        self.reserve_wait_possible_name = data["rsvWaitPsbCdNm"]
+        self.reserve_wait_possible_code = int(data["rsvWaitPsbCd"]) # -1: 예약대기 없음, 9: 예약대기 가능, 0: 매진, -2: 예약대기 불가능
 
     def __str__(self):
         return self.dump()
@@ -435,14 +439,16 @@ class SRTTrain(Train):
         arr_hour, arr_min = self.arr_time[0:2], self.arr_time[2:4]
         month, day = self.dep_date[4:6], self.dep_date[6:8]
 
-        return (
+        msg = (
             f"[{self.train_name} {self.train_number}] "
             f"{month}월 {day}일, "
             f"{self.dep_station_name}~{self.arr_station_name}"
             f"({dep_hour}:{dep_min}~{arr_hour}:{arr_min}) "
-            f"특실 {self.special_seat_state}, 일반실 {self.general_seat_state}, "
-            f"예약대기 {'가능' if self.reserve_standby_available() else '불가능'}"
+            f"특실 {self.special_seat_state}, 일반실 {self.general_seat_state}"
         )
+        if self.reserve_wait_possible_code >= 0:
+            msg += f", 예매대기 {self.reserve_wait_possible_name}"
+        return msg
 
     def general_seat_available(self):
         return "예약가능" in self.general_seat_state
@@ -451,7 +457,7 @@ class SRTTrain(Train):
         return "예약가능" in self.special_seat_state
 
     def reserve_standby_available(self):
-        return "9" in self.reserve_wait_possible_code
+        return self.reserve_wait_possible_code == 9
 
     def seat_available(self):
         return self.general_seat_available() or self.special_seat_available()
@@ -484,12 +490,13 @@ class NetFunnelHelper:
         "Sec-Fetch-Site": "cross-site",
     }
 
-    def __init__(self):
+    def __init__(self, debug=False):
         self._session = requests.session()
         self._session.headers.update(self.DEFAULT_HEADERS)
         self._cached_key = None
         self._last_fetch_time = 0
         self._cache_ttl = 48  # 48 seconds
+        self.debug = debug
 
     def run(self):
         current_time = time.time()
@@ -532,7 +539,10 @@ class NetFunnelHelper:
 
     def _make_request(self, opcode: str):
         params = self._build_params(self.OP_CODE[opcode])
-        response = self._parse(self._session.get(self.NETFUNNEL_URL, params=params).text)
+        r = self._session.get(self.NETFUNNEL_URL, params=params)
+        if self.debug:
+            print(r.text)
+        response = self._parse(r.text)
         return response.get("status"), response.get("key"), response.get("nwait")
 
     def _build_params(self, opcode: str, timestamp: str = None, key: str = None) -> dict:
@@ -591,12 +601,14 @@ class SRT:
     ) -> None:
         self._session = requests.session()
         self._session.headers.update(DEFAULT_HEADERS)
-        self._netfunnel = NetFunnelHelper()
+        self._netfunnel = NetFunnelHelper(debug=verbose)
         self.srt_id = srt_id
         self.srt_pw = srt_pw
         self.verbose = verbose
         self.is_login = False
         self.membership_number = None
+        self.membership_name = None
+        self.phone_number = None
 
         if auto_login:
             self.login()
@@ -653,7 +665,12 @@ class SRT:
             raise SRTLoginError(r.text.strip())
 
         self.is_login = True
-        self.membership_number = json.loads(r.text)["userMap"]["MB_CRD_NO"]
+        user_info = json.loads(r.text)["userMap"]
+        self.membership_number = user_info["MB_CRD_NO"]
+        self.membership_name = user_info["CUST_NM"]
+        self.phone_number = user_info["MBL_PHONE"]
+
+        print(f"로그인 성공: {self.membership_name} (멤버십번호: {self.membership_number}, 전화번호: {self.phone_number})")
         return True
 
     def logout(self) -> bool:
@@ -750,12 +767,11 @@ class SRT:
         }
 
         r = self._session.post(url=API_ENDPOINTS["search_schedule"], data=data)
+        self._log(r.text)
         parser = SRTResponseData(r.text)
 
         if not parser.success():
             raise SRTResponseError(parser.message())
-
-        self._log(parser.message())
 
         return [
             train for train in (
@@ -788,6 +804,9 @@ class SRT:
             >>> trains = srt.search_train("수서", "부산", "210101", "000000")
             >>> srt.reserve(trains[0])
         """
+        if not train.seat_available() and train.reserve_wait_possible_code >= 0:
+            return self.reserve_standby(train, passengers, mblPhone=self.phone_number)
+
         return self._reserve(
             RESERVE_JOBID["PERSONAL"],
             train,
@@ -909,12 +928,12 @@ class SRT:
         ))
 
         r = self._session.post(url=API_ENDPOINTS["reserve"], data=data)
+        self._log(r.text)
         parser = SRTResponseData(r.text)
 
         if not parser.success():
             raise SRTResponseError(parser.message())
 
-        self._log(parser.message())
         reservation_number = parser.get_all()["reservListMap"][0]["pnrNo"]
 
         for ticket in self.get_reservations():
@@ -959,6 +978,7 @@ class SRT:
         }
 
         r = self._session.post(url=API_ENDPOINTS["standby_option"], data=data)
+        self._log(r.text)
         return r.status_code == 200
 
     def get_reservations(self, paid_only: bool = False) -> list[SRTReservation]:
@@ -978,12 +998,11 @@ class SRT:
             raise SRTNotLoggedInError()
 
         r = self._session.post(url=API_ENDPOINTS["tickets"], data={"pageNo": "0"})
+        self._log(r.text)
         parser = SRTResponseData(r.text)
 
         if not parser.success():
             raise SRTResponseError(parser.message())
-
-        self._log(parser.message())
 
         return [
             SRTReservation(train, pay, self.ticket_info(train["pnrNo"]))
@@ -1016,6 +1035,7 @@ class SRT:
             url=API_ENDPOINTS["ticket_info"],
             data={"pnrNo": reservation_number, "jrnySqno": "1"}
         )
+        self._log(r.text)
         parser = SRTResponseData(r.text)
 
         if not parser.success():
@@ -1054,12 +1074,12 @@ class SRT:
         }
 
         r = self._session.post(url=API_ENDPOINTS["cancel"], data=data)
+        self._log(r.text)
         parser = SRTResponseData(r.text)
 
         if not parser.success():
             raise SRTResponseError(parser.message())
 
-        self._log(parser.message())
         return True
 
     def pay_with_card(
@@ -1132,6 +1152,7 @@ class SRT:
         }
 
         r = self._session.post(url=API_ENDPOINTS["payment"], data=data)
+        self._log(r.text)
         response = json.loads(r.text)
 
         if response["outDataSets"]["dsOutput0"][0]["strResult"] == "FAIL":
@@ -1143,7 +1164,7 @@ class SRT:
         referer = API_ENDPOINTS["reserve_info_referer"] + reservation.reservation_number
         self._session.headers.update({"Referer": referer})
         r = self._session.post(url=API_ENDPOINTS["reserve_info"])
-        
+        self._log(r.text)
         response = json.loads(r.text)
         if response.get("ErrorCode") == "0" and response.get("ErrorMsg") == "":
             return response.get("outDataSets").get("dsOutput1")[0]
@@ -1163,13 +1184,14 @@ class SRT:
         }
 
         r = self._session.post(url=API_ENDPOINTS["refund"], data=data)
+        self._log(r.text)
         response = SRTResponseData(r.text)
 
         if not response.success():
             raise SRTResponseError(response.message())
 
-        self._log(response.message())
         return True
     
     def clear(self):
+        self._log("Clearing the netfunnel key")
         self._netfunnel.clear()

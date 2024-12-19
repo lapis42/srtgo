@@ -78,7 +78,7 @@ class Schedule:
         dep_time = f"{self.dep_time[:2]}:{self.dep_time[2:4]}"
         arr_time = f"{self.arr_time[:2]}:{self.arr_time[2:4]}"
         dep_date = f"{int(self.dep_date[4:6])}월 {int(self.dep_date[6:])}일"
-        return f'[{self.train_type_name} {self.train_no}] {dep_date}, {self.dep_name}~{self.arr_name}({dep_time}~{arr_time})'
+        return f'[{self.train_type_name[:3]} {self.train_no}] {dep_date}, {self.dep_name}~{self.arr_name}({dep_time}~{arr_time})'
 
 class Train(Schedule):
     """Train schedule with seat availability"""
@@ -95,9 +95,10 @@ class Train(Schedule):
     def __repr__(self):
         repr_str = super().__repr__()
         if self.reserve_possible_name:
-            repr_str += f" 특실 {'예약가능' if self.has_special_seat() else '매진'}"
-            repr_str += f", 일반실 {'예약가능' if self.has_general_seat() else '매진'}"
-            repr_str += f", 예약대기 {'가능' if self.has_general_waiting_list() else '불가능'}"
+            repr_str += f" 특실 {'가능' if self.has_special_seat() else '매진'}"
+            repr_str += f", 일반실 {'가능' if self.has_general_seat() else '매진'}"
+            if self.wait_reserve_flag >= 0:
+                repr_str += f", 예약대기 {'가능' if self.has_general_waiting_list() else '매진'}"
         return repr_str
 
     def has_special_seat(self):
@@ -164,9 +165,12 @@ class Reservation(Train):
     def __repr__(self):
         repr_str = super().__repr__()
         repr_str += f", {self.price}원({self.seat_no_count}석)"
-        buy_limit_time = f"{self.buy_limit_time[:2]}:{self.buy_limit_time[2:4]}"
-        buy_limit_date = f"{int(self.buy_limit_date[4:6])}월 {int(self.buy_limit_date[6:])}일"
-        repr_str += f", 구입기한 {buy_limit_date} {buy_limit_time}"
+        if self.buy_limit_time == "235959" and self.buy_limit_date == "00000000":
+            repr_str += ", 예약대기"
+        else:
+            buy_limit_time = f"{self.buy_limit_time[:2]}:{self.buy_limit_time[2:4]}"
+            buy_limit_date = f"{int(self.buy_limit_date[4:6])}월 {int(self.buy_limit_date[6:])}일"
+            repr_str += f", 구입기한 {buy_limit_date} {buy_limit_time}"
         return repr_str
 
 
@@ -386,7 +390,7 @@ class NetFunnelHelper:
 
 class Korail:
     """Main Korail API interface"""
-    def __init__(self, korail_id, korail_pw, auto_login=True, want_feedback=False):
+    def __init__(self, korail_id, korail_pw, auto_login=True, verbose=False):
         self._session = requests.session()
         self._session.headers.update(DEFAULT_HEADERS)
         self._device = 'AD'
@@ -395,13 +399,18 @@ class Korail:
         self._idx = None
         self.korail_id = korail_id
         self.korail_pw = korail_pw
-        self.want_feedback = want_feedback
+        self.verbose = verbose
         self.logined = False
         self.membership_number = None
         self.name = None
         self.email = None
+        self.phone_number = None
         if auto_login:
             self.login(korail_id, korail_pw)
+    
+    def _log(self, msg: str) -> None:
+        if self.verbose:
+            print(f"[*] {msg}")
 
     def __enc_password(self, password):
         url = API_ENDPOINTS["code"]
@@ -438,6 +447,7 @@ class Korail:
         }
 
         r = self._session.post(API_ENDPOINTS["login"], data=data)
+        self._log(r.text)
         j = json.loads(r.text)
 
         if j['strResult'] == 'SUCC' and j.get('strMbCrdNo'):
@@ -445,19 +455,19 @@ class Korail:
             self.membership_number = j['strMbCrdNo']
             self.name = j['strCustNm']
             self.email = j['strEmailAdr']
+            self.phone_number = j['strCpNo']
+            print(f"로그인 성공: {self.name} (멤버십번호: {self.membership_number}, 전화번호: {self.phone_number})")
             self.logined = True
             return True
         self.logined = False
         return False
 
     def logout(self):
-        self._session.get(API_ENDPOINTS["logout"])
+        r = self._session.get(API_ENDPOINTS["logout"])
+        self._log(r.text)
         self.logined = False
 
     def _result_check(self, j):
-        if self.want_feedback:
-            print(j.get('h_msg_txt'))
-
         if j.get('strResult') == 'FAIL':
             h_msg_cd = j.get('h_msg_cd')
             h_msg_txt = j.get('h_msg_txt')
@@ -512,6 +522,7 @@ class Korail:
         }
 
         r = self._session.get(API_ENDPOINTS["search_schedule"], params=data)
+        self._log(r.text)
         j = json.loads(r.text)
 
         if self._result_check(j):
@@ -538,6 +549,10 @@ class Korail:
             ReserveOption.GENERAL_FIRST: not train.has_general_seat(),
             ReserveOption.SPECIAL_FIRST: train.has_special_seat(),
         }[option]
+        
+        if not train.has_seat() and train.wait_reserve_flag >= 0:
+            reserving_seat = False
+            is_special_seat = False
 
         passengers = passengers or [AdultPassenger()]
         passengers = Passenger.reduce(passengers)
@@ -589,6 +604,7 @@ class Korail:
             data.update(psg.get_dict(i))
 
         r = self._session.get(API_ENDPOINTS["reserve"], params=data)
+        self._log(r.text)
         j = json.loads(r.text)
         if self._result_check(j):
             rsv_id = j.get('h_pnr_no')
@@ -613,6 +629,7 @@ class Korail:
         }
 
         r = self._session.get(API_ENDPOINTS["myticketlist"], params=data)
+        self._log(r.text)
         j = json.loads(r.text)
         try:
             if self._result_check(j):
@@ -646,6 +663,7 @@ class Korail:
             'Key': self._key,
         }
         r = self._session.get(API_ENDPOINTS["myreservationlist"], params=data)
+        self._log(r.text)
         j = json.loads(r.text)
         try:
             if not self._result_check(j):
@@ -694,6 +712,7 @@ class Korail:
         }
 
         r = self._session.post(API_ENDPOINTS["pay"], data=data)
+        self._log(r.text)
         j = json.loads(r.text)
         if self._result_check(j):
             return True
@@ -712,6 +731,7 @@ class Korail:
             'hidRsvChgNo': rsv.rsv_chg_no,
         }
         r = self._session.post(API_ENDPOINTS["cancel"], data=data)
+        self._log(r.text)
         j = json.loads(r.text)
         return self._result_check(j)
 
@@ -733,5 +753,6 @@ class Korail:
             'longitude': ""
         }
         r = self._session.post(API_ENDPOINTS["refund"], data=data)
+        self._log(r.text)
         j = json.loads(r.text)
         return self._result_check(j)
