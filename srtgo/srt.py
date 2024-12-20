@@ -447,7 +447,7 @@ class SRTTrain(Train):
             f"특실 {self.special_seat_state}, 일반실 {self.general_seat_state}"
         )
         if self.reserve_wait_possible_code >= 0:
-            msg += f", 예매대기 {self.reserve_wait_possible_name}"
+            msg += f", 예약대기 {self.reserve_wait_possible_name}"
         return msg
 
     def general_seat_available(self):
