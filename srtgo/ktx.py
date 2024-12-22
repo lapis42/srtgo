@@ -161,11 +161,12 @@ class Reservation(Train):
         self.journey_no = data.get('txtJrnySqno', "001")
         self.journey_cnt = data.get('txtJrnyCnt', "01")
         self.rsv_chg_no = data.get('hidRsvChgNo', "00000")
+        self.is_waiting = self.buy_limit_date == "00000000" or self.buy_limit_time == "235959"
 
     def __repr__(self):
         repr_str = super().__repr__()
         repr_str += f", {self.price}원({self.seat_no_count}석)"
-        if self.buy_limit_time == "235959" and self.buy_limit_date == "00000000":
+        if self.is_waiting:
             repr_str += ", 예약대기"
         else:
             buy_limit_time = f"{self.buy_limit_time[:2]}:{self.buy_limit_time[2:4]}"

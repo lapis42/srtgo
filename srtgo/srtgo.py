@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
 from random import gammavariate
+from requests.exceptions import ConnectionError
 from termcolor import colored
 from typing import Awaitable, Callable, List, Optional, Tuple, Union
 
@@ -50,8 +51,8 @@ STATIONS = {
     ]
 }
 DEFAULT_STATIONS = {
-    "SRT": [0, 1, 2, 10, 11, 15],
-    "KTX": [0, 6, 7, 10, 15]
+    "SRT": [0, 11, 12, 16],
+    "KTX": [0, 7, 10, 15]
 }
 
 # 예약 간격 (평균 간격 (초) = SHAPE * SCALE)
@@ -143,13 +144,14 @@ def set_station(rail_type: RailType) -> bool:
 
 
 def get_station(rail_type: RailType) -> Tuple[List[str], List[int]]:
-    station_key = keyring.get_password(rail_type, "station")
-    station_key = [int(x) for x in station_key.split(',')] if station_key else None
-
     stations = STATIONS[rail_type]
-    default_stations = DEFAULT_STATIONS[rail_type]
+    station_key = keyring.get_password(rail_type, "station")
     
-    return stations, station_key or default_stations
+    if not station_key:
+        return stations, DEFAULT_STATIONS[rail_type]
+        
+    valid_keys = [int(x) for x in station_key.split(',') if int(x) < len(stations)]
+    return stations, valid_keys or DEFAULT_STATIONS[rail_type]
 
 
 def set_options():
@@ -479,7 +481,7 @@ def reserve(rail_type="SRT", debug=False):
 
         print(colored(f"\n\n🎫 🎉 예매 성공!!! 🎉 🎫\n{msg}\n", "red", "on_green"))
 
-        if options["pay"] and pay_card(rail, reserve):
+        if options["pay"] and not reserve.is_waiting and pay_card(rail, reserve):
             print(colored("\n\n💳 ✨ 결제 성공!!! ✨ 💳\n\n", "green", "on_red"), end="")
             msg += "\n결제 완료"
 
@@ -491,24 +493,26 @@ def reserve(rail_type="SRT", debug=False):
     start_time = time.time()
     while True:
         try:
-            i_try += 1
-            elapsed_time = time.time() - start_time
-            hours, remainder = divmod(int(elapsed_time), 3600)
-            minutes, seconds = divmod(remainder, 60)
-            print(f"\r예매 대기 중... {WAITING_BAR[i_try & 3]} {i_try:4d} ({hours:02d}:{minutes:02d}:{seconds:02d}) ",
-                  end="", flush=True)
+            trains = rail.search_train(**params)
+            while True:
+                i_try += 1
+                elapsed_time = time.time() - start_time
+                hours, remainder = divmod(int(elapsed_time), 3600)
+                minutes, seconds = divmod(remainder, 60)
+                print(f"\r예매 대기 중... {WAITING_BAR[i_try & 3]} {i_try:4d} ({hours:02d}:{minutes:02d}:{seconds:02d}) ",
+                    end="", flush=True)
 
-            if do_search:
-                trains = rail.search_train(**params)
-                for i in choice["trains"]:
-                    train = trains[i]
-                    if _is_seat_available(train, options["type"], rail_type):
-                        _reserve(train)
-                        return
-            else:
-                _reserve(train)
-                return
-            _sleep()
+                if do_search:
+                    trains = rail.search_train(**params)
+                    for i in choice["trains"]:
+                        train = trains[i]
+                        if _is_seat_available(train, options["type"], rail_type):
+                            _reserve(train)
+                            return
+                else:
+                    _reserve(train)
+                    return
+                _sleep()
 
         except SRTError as ex:
             msg = ex.msg
@@ -526,7 +530,12 @@ def reserve(rail_type="SRT", debug=False):
                 if not rail.is_login:
                     if not _handle_error(ex):
                         return
-            elif not any(err in msg for err in ("잔여석없음", "예약대기자한도수초과", "사용자가 많아 접속이 원활하지 않습니다")):
+            elif not any(err in msg for err in (
+                "잔여석없음",
+                "사용자가 많아 접속이 원활하지 않습니다",
+                "예약대기 접수가 마감되었습니다",
+                "예약대기자한도수초과"
+            )):
                 if not _handle_error(ex):
                     return
             _sleep()
@@ -538,22 +547,25 @@ def reserve(rail_type="SRT", debug=False):
 
         except JSONDecodeError as ex:
             if debug:
-                error_msg = f"Exception: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {ex.msg}"
+                error_msg = f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {ex.msg}"
                 print(error_msg)
             _sleep()
+        
+        except ConnectionError as ex:
+            if not _handle_error(ex, "연결이 끊겼습니다"):
+                return
 
         except Exception as ex:
             if debug:
                 print("\nUndefined exception")
             if not _handle_error(ex):
                 return
-            _sleep()
 
 def _sleep():
     time.sleep(gammavariate(RESERVE_INTERVAL_SHAPE, RESERVE_INTERVAL_SCALE))
 
-def _handle_error(ex):
-    msg = f"\nException: {ex}, Type: {type(ex)}, Args: {ex.args}, Message: {ex.msg if hasattr(ex, 'msg') else 'No message attribute'}"
+def _handle_error(ex, msg=None):
+    msg = msg or f"\nException: {ex}, Type: {type(ex)}, Message: {ex.msg if hasattr(ex, 'msg') else 'No message attribute'}"
     print(msg)
     tgprintf = get_telegram()
     asyncio.run(tgprintf(msg))

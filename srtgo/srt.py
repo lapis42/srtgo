@@ -304,6 +304,7 @@ class SRTReservation:
         self.payment_time = pay.get("iseLmtTm")
         self.paid = pay.get("stlFlg") == "Y"
         self.is_running = "tkSpecNum" not in train
+        self.is_waiting = not (self.paid or self.payment_date or self.payment_time)
 
         self._tickets = tickets
 
@@ -322,7 +323,7 @@ class SRTReservation:
         )
 
         if not self.paid:
-            if self.payment_date and self.payment_time:
+            if not self.is_waiting:
                 base += (
                     f", 구입기한 {self.payment_date[4:6]}월 {self.payment_date[6:8]}일 "
                     f"{self.payment_time[:2]}:{self.payment_time[2:4]}"
