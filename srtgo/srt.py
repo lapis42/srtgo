@@ -741,10 +741,6 @@ class SRT:
 
         passengers = Passenger.combine(passengers or [Adult()])
 
-        netfunnel_key = self._netfunnel.run()
-        if netfunnel_key is None:
-            raise SRTNetFunnelError("Failed to get NetFunnel key")
-
         data = {
             "chtnDvCd": "1",
             "dptDt": date,
@@ -764,7 +760,7 @@ class SRT:
             "tkTrnNo": "",
             "tkTripChgFlg": "",
             "dlayTnumAplFlg": "Y",
-            "netfunnelKey": netfunnel_key
+            "netfunnelKey": self._netfunnel.run()
         }
 
         r = self._session.post(url=API_ENDPOINTS["search_schedule"], data=data)
@@ -917,6 +913,7 @@ class SRT:
             "dptStnRunOrdr1": train.dep_station_run_order,
             "arvStnRunOrdr1": train.arr_station_run_order,
             "mblPhone": mblPhone,
+            "netfunnelKey": self._netfunnel.run()
         }
 
         if jobid == RESERVE_JOBID["PERSONAL"]:
