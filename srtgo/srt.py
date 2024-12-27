@@ -268,6 +268,7 @@ class SRTTicket:
         self.price = int(data.get("rcvdAmt"))
         self.original_price = int(data.get("stdrPrc")) 
         self.discount = int(data.get("dcntPrc"))
+        self.is_waiting = self.seat == ""
 
     def __str__(self) -> str:
         return self.dump()
@@ -275,6 +276,11 @@ class SRTTicket:
     __repr__ = __str__
 
     def dump(self) -> str:
+        if self.is_waiting:
+            return (
+                f"예약대기 ({self.seat_type}) {self.passenger_type}"
+                f"[{self.price}원({self.discount}원 할인)]"
+            )
         return (
             f"{self.car}호차 {self.seat} ({self.seat_type}) {self.passenger_type} "
             f"[{self.price}원({self.discount}원 할인)]"
@@ -802,7 +808,11 @@ class SRT:
             >>> srt.reserve(trains[0])
         """
         if not train.seat_available() and train.reserve_wait_possible_code >= 0:
-            return self.reserve_standby(train, passengers, mblPhone=self.phone_number)
+            reservation = self.reserve_standby(train, passengers, option=option, mblPhone=self.phone_number)
+            if self.phone_number:
+                agree_class_change = option == SeatType.SPECIAL_FIRST or option == SeatType.GENERAL_FIRST
+                self.reserve_standby_option_settings(reservation, isAgreeSMS=True, isAgreeClassChange=agree_class_change, telNo=self.phone_number)
+            return reservation
 
         return self._reserve(
             RESERVE_JOBID["PERSONAL"],
@@ -834,6 +844,10 @@ class SRT:
             >>> trains = srt.search_train("수서", "부산", "210101", "000000")
             >>> srt.reserve_standby(trains[0])
         """
+        if option == SeatType.SPECIAL_FIRST:
+            option = SeatType.SPECIAL_ONLY
+        elif option == SeatType.GENERAL_FIRST:
+            option = SeatType.GENERAL_ONLY
         return self._reserve(
             RESERVE_JOBID["STANDBY"],
             train,

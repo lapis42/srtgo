@@ -462,8 +462,12 @@ def reserve(rail_type="SRT", debug=False):
                                             ("특실 우선", seat_type.SPECIAL_FIRST), 
                                             ("특실만", seat_type.SPECIAL_ONLY)]))
     else:
-        do_search = False
         train = trains[choice["trains"][0]]
+        is_waiting_available = (
+            (is_srt and not train.seat_available() and train.reserve_wait_possible_code >= 0) or
+            (not is_srt and not train.has_seat() and train.wait_reserve_flag >= 0)
+        )
+        do_search = is_waiting_available
         q_choice.append(inquirer.List("type", message="선택 유형", 
                                     choices=[("일반실만", seat_type.GENERAL_ONLY),
                                             ("특실만", seat_type.SPECIAL_ONLY)]))
