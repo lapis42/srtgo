@@ -543,17 +543,21 @@ class Korail:
             return trains
 
     def reserve(self, train, passengers=None, option=ReserveOption.GENERAL_FIRST):
-        reserving_seat = True
-        is_special_seat = {
-            ReserveOption.GENERAL_ONLY: False,
-            ReserveOption.SPECIAL_ONLY: True,
-            ReserveOption.GENERAL_FIRST: not train.has_general_seat(),
-            ReserveOption.SPECIAL_FIRST: train.has_special_seat(),
-        }[option]
-        
-        if not train.has_seat() and train.wait_reserve_flag >= 0:
-            reserving_seat = False
-            is_special_seat = False
+        reserving_seat = train.has_seat() or train.wait_reserve_flag < 0
+        if reserving_seat:
+            is_special_seat = {
+                ReserveOption.GENERAL_ONLY: False,
+                ReserveOption.SPECIAL_ONLY: True,
+                ReserveOption.GENERAL_FIRST: not train.has_general_seat(),
+                ReserveOption.SPECIAL_FIRST: train.has_special_seat(),
+            }[option]
+        else:
+            is_special_seat = {
+                ReserveOption.GENERAL_ONLY: False,
+                ReserveOption.SPECIAL_ONLY: True,
+                ReserveOption.GENERAL_FIRST: False,
+                ReserveOption.SPECIAL_FIRST: True,
+            }[option]
 
         passengers = passengers or [AdultPassenger()]
         passengers = Passenger.reduce(passengers)
