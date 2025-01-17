@@ -1,4 +1,5 @@
 import abc
+import httpx
 import json
 import re
 import requests
@@ -12,8 +13,8 @@ EMAIL_REGEX: Pattern = re.compile(r"[^@]+@[^@]+\.[^@]+")
 PHONE_NUMBER_REGEX: Pattern = re.compile(r"(\d{3})-(\d{3,4})-(\d{4})")
 
 USER_AGENT = (
-    "Mozilla/5.0 (Linux; Android 14; SM-S911U1 Build/UP1A.231005.007; wv) AppleWebKit/537.36"
-    "(KHTML, like Gecko) Version/4.0 Chrome/131.0.6778.135 Mobile Safari/537.36SRT-APP-Android V.2.0.32"
+    "Mozilla/5.0 (Linux; Android 14; SM-S912N Build/UP1A.231005.007; wv) AppleWebKit/537.36"
+    "(KHTML, like Gecko) Version/4.0 Chrome/131.0.6778.260 Mobile Safari/537.36SRT-APP-Android V.2.0.33"
 )
 
 DEFAULT_HEADERS: Dict[str, str] = {
@@ -472,8 +473,6 @@ class SRTTrain(Train):
 
 # NetFunnel
 class NetFunnelHelper:
-    NETFUNNEL_URL = "http://nf.letskorail.com/ts.wseq"
-
     WAIT_STATUS_PASS = "200"
     WAIT_STATUS_FAIL = "201" 
     ALREADY_COMPLETED = "502"
@@ -498,8 +497,7 @@ class NetFunnelHelper:
     }
 
     def __init__(self, debug=False):
-        self._session = requests.session()
-        self._session.headers.update(self.DEFAULT_HEADERS)
+        self._session = httpx.Client(headers=self.DEFAULT_HEADERS)
         self._cached_key = None
         self._last_fetch_time = 0
         self._cache_ttl = 48  # 48 seconds
@@ -511,17 +509,18 @@ class NetFunnelHelper:
             return self._cached_key
 
         try:
-            status, self._cached_key, nwait = self._start()
+            status, self._cached_key, nwait, ip = self._start()
             self._last_fetch_time = current_time
 
+            # Keep checking until we get a pass status
             while status == self.WAIT_STATUS_FAIL:
                 print(f"\r현재 {nwait}명 대기중...", end="", flush=True)
                 time.sleep(1)
-                status, self._cached_key, nwait = self._check()
+                status, self._cached_key, nwait, ip = self._check(ip)
             
-            # Try completing once
-            status, _, _ = self._complete()
-            if status == self.WAIT_STATUS_PASS or status == self.ALREADY_COMPLETED:
+            # Complete the funnel process
+            status, *_ = self._complete(ip)
+            if status in (self.WAIT_STATUS_PASS, self.ALREADY_COMPLETED):
                 return self._cached_key
 
             self.clear()
@@ -538,19 +537,20 @@ class NetFunnelHelper:
     def _start(self):
         return self._make_request("getTidchkEnter")
 
-    def _check(self):
-        return self._make_request("chkEnter")
+    def _check(self, ip: str | None = None):
+        return self._make_request("chkEnter", ip)
 
-    def _complete(self):
-        return self._make_request("setComplete")
+    def _complete(self, ip: str | None = None):
+        return self._make_request("setComplete", ip)
 
-    def _make_request(self, opcode: str):
+    def _make_request(self, opcode: str, ip: str | None = None):
+        url = f"https://{ip or 'nf.letskorail.com'}/ts.wseq"
         params = self._build_params(self.OP_CODE[opcode])
-        r = self._session.get(self.NETFUNNEL_URL, params=params)
+        r = self._session.get(url, params=params)
         if self.debug:
             print(r.text)
         response = self._parse(r.text)
-        return response.get("status"), response.get("key"), response.get("nwait")
+        return map(response.get, ('status', 'key', 'nwait', 'ip'))
 
     def _build_params(self, opcode: str, timestamp: str = None, key: str = None) -> dict:
         params = {
