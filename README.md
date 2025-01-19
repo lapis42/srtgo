@@ -57,6 +57,7 @@ pip install git+https://github.com/lapis42/srtgo -U
    텔레그램 설정
    카드 설정
    역 설정
+   역 직접 수정
    예매 옵션 설정
    나가기
 
