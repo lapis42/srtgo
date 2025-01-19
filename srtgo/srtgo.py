@@ -92,11 +92,11 @@ def srtgo(debug=False):
         1: lambda rt: reserve(rt, debug),
         2: lambda rt: check_reservation(rt, debug),
         3: lambda rt: set_login(rt, debug),
-        4: set_telegram,
-        5: set_card,
-        6: set_station,
-        7: edit_station,
-        8: set_options
+        4: lambda _: set_telegram(),
+        5: lambda _: set_card(),
+        6: lambda rt: set_station(rt),
+        7: lambda rt: edit_station(rt),
+        8: lambda _: set_options()
     }
 
     while True:
