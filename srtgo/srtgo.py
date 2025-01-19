@@ -11,6 +11,7 @@ import inquirer
 import keyring
 import telegram
 import time
+import re
 
 from .ktx import (
     Korail,
@@ -143,7 +144,7 @@ def set_station(rail_type: RailType) -> bool:
 def edit_station(rail_type: RailType) -> bool:
     stations, default_station_key = get_station(rail_type)
     station_info = inquirer.prompt([
-        inquirer.Text("stations", message="역 수정", default=keyring.get_password(rail_type, "station") or "")
+        inquirer.Text("stations", message="역 수정 (예: 수서,대전,동대구)", default=keyring.get_password(rail_type, "station") or "")
     ])
     if not station_info:
         return False
@@ -153,6 +154,15 @@ def edit_station(rail_type: RailType) -> bool:
         return False
 
     selected = [s.strip() for s in selected.split(',')]
+    
+    # Verify all stations contain Korean characters
+    hangul = re.compile('[가-힣]+')
+    for station in selected:
+        if not hangul.search(station):
+            print(f"'{station}'는 잘못된 입력입니다. 기본 역으로 설정합니다.")
+            selected = DEFAULT_STATIONS[rail_type]
+            break
+
     keyring.set_password(rail_type, "station", (selected_stations := ','.join(selected)))
     print(f"선택된 역: {selected_stations}")
     return True
