@@ -1,5 +1,4 @@
 import abc
-import httpx
 import json
 import re
 import requests
@@ -497,7 +496,8 @@ class NetFunnelHelper:
     }
 
     def __init__(self, debug=False):
-        self._session = httpx.Client(headers=self.DEFAULT_HEADERS)
+        self._session = requests.session()
+        self._session.headers.update(self.DEFAULT_HEADERS)
         self._cached_key = None
         self._last_fetch_time = 0
         self._cache_ttl = 48  # 48 seconds

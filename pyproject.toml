@@ -16,7 +16,6 @@ classifiers = [
 ]
 dependencies = [
     "click",
-    "httpx==0.27.0",
     "inquirer>=3.4",
     "keyring",
     "PyCryptodome",
