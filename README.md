@@ -4,34 +4,35 @@
 [![Downloads](https://static.pepy.tech/badge/srtgo/month)](https://pepy.tech/project/srtgo)
 [![Python version](https://img.shields.io/pypi/pyversions/srtgo)](https://pypistats.org/packages/srtgo)
 
-> [!WARNING]
-> 본 프로그램의 모든 상업적, 영리적 이용을 엄격히 금지합니다. 본 프로그램 사용에 따른 민형사상 책임을 포함한 모든 책임은 사용자에게 따르며, 본 프로그램의 개발자는 민형사상 책임을 포함한 어떠한 책임도 부담하지 아니합니다. 📥본 프로그램을 내려받음으로써 모든 사용자는 위 사항에 아무런 이의 없이 동의하는 것으로 간주됩니다.
+> [!WARNING]  
+> 본 프로그램의 모든 상업적, 영리적 이용을 엄격히 금지합니다. 본 프로그램 사용에 따른 민형사상 책임을 포함한 모든 책임은 사용자에게 따르며, 본 프로그램의 개발자는 민형사상 책임을 포함한 어떠한 책임도 부담하지 아니합니다. 본 프로그램을 내려받음으로써 모든 사용자는 위 사항에 아무런 이의 없이 동의하는 것으로 간주됩니다.
 
 > [!IMPORTANT]
 > 본 프로그램에 입력하는 아이디, 비번, 카드번호, 예매 설정 등은 로컬 컴퓨터에 [keyring 모듈](https://pypi.org/project/keyring/)을 통하여 저장하며 그 이외의 위치에 네트워크 전송 등을 통하여 공유되지 않습니다.
 
-- 본 프로그램은 SRT 및 KTX 기차표 예매를 도와주는 프로그램입니다.
-- 예약이 완료되면 텔레그램 알림을 전송합니다.
-  - [Bot Token 및 Chat Id 얻기](https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0).
-- 신용카드 정보를 입력해두면, 예매 직후에 결제되도록 할 수 있습니다.
-- 자주 사용하는 역을 지정할 수 있습니다.
-- 어린이 혹은 우대 예매 설정을 할 수 있습니다.
-- 표가 매진 된 경우 예약대기를 신청합니다.
+## 주요 기능
+- SRT 및 KTX 기차표 자동 예매
+- 텔레그램 알림 전송
+  - [Bot Token 및 Chat ID 얻기](https://gabrielkim.tistory.com/entry/Telegram-Bot-Token-%EB%B0%8F-Chat-Id-%EC%96%BB%EA%B8%B0)
+- 자동 신용카드 결제
+- 자주 사용하는 역 설정
+- 어린이/우대 예매 지원
+- 매진 시 예약대기 신청
 
 ---
 > [!WARNING]
-> All commercial and commercial use of this program is strictly prohibited. Use of this program is at your own risk, and the developers of this program shall not be liable for any liability, including civil or criminal liability. 📥By downloading this program, all users agree to the above without any objection.
+> All commercial and commercial use of this program is strictly prohibited. Use of this program is at your own risk, and the developers of this program shall not be liable for any liability, including civil or criminal liability. By downloading this program, all users agree to the above without any objection.
 
-> [!IMPORTANT]
-> Through the keyring module, the information such as username, password, credit card, departure station, and arrival station is stored on the local computer.
-> The ID, password, card number, reservation settings, etc. entered in this program are stored on the local computer through the [keyring module](https://pypi.org/project/keyring/) and are not shared through network transmission to any other location.
+> [!IMPORTANT]  
+> All sensitive data (login, payment info, settings) is stored locally via [keyring](https://pypi.org/project/keyring/) and never transmitted.
 
-- This program is a program that helps you to reserve SRT and KTX train tickets.
-- After the reservation is completed, a Telegram notification will be sent.
-- You can enter your credit card information to be charged immediately after you make your reservation.
-- You can specify your favorite stations.
-- You can set up child or senior ticketing.
-- If tickets are sold out, you can join the waiting list.
+## Key Features
+- Automated SRT/KTX ticket reservations
+- Telegram notifications
+- Automatic credit card payment
+- Favorite station presets  
+- Child/Senior ticket support
+- Waitlist for sold-out trains
 
 ## Installation / Update
 ```bash
