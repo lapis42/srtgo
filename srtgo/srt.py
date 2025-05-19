@@ -1,7 +1,7 @@
 import abc
+import curl_cffi
 import json
 import re
-import requests
 import time
 from enum import Enum
 from datetime import datetime
@@ -496,7 +496,7 @@ class NetFunnelHelper:
     }
 
     def __init__(self, debug=False):
-        self._session = requests.session()
+        self._session = curl_cffi.Session()
         self._session.headers.update(self.DEFAULT_HEADERS)
         self._cached_key = None
         self._last_fetch_time = 0
@@ -544,7 +544,7 @@ class NetFunnelHelper:
         return self._make_request("setComplete", ip)
 
     def _make_request(self, opcode: str, ip: str | None = None):
-        url = f"http://{ip or 'nf.letskorail.com'}/ts.wseq"
+        url = f"https://{ip or 'nf.letskorail.com'}/ts.wseq"
         params = self._build_params(self.OP_CODE[opcode])
         r = self._session.get(url, params=params)
         if self.debug:
@@ -606,7 +606,7 @@ class SRT:
     def __init__(
         self, srt_id: str, srt_pw: str, auto_login: bool = True, verbose: bool = False
     ) -> None:
-        self._session = requests.session()
+        self._session = curl_cffi.Session()
         self._session.headers.update(DEFAULT_HEADERS)
         self._netfunnel = NetFunnelHelper(debug=verbose)
         self.srt_id = srt_id
@@ -1128,6 +1128,9 @@ class SRT:
         """
         if not self.is_login:
             raise SRTNotLoggedInError()
+        
+        if len(expire_date) == 4:
+            expire_date = '20' + expire_date
 
         data = {
             "stlDmnDt": datetime.now().strftime("%Y%m%d"),

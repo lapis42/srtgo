@@ -1,7 +1,7 @@
+from curl_cffi.requests.exceptions import ConnectionError
 from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
 from random import gammavariate
-from requests.exceptions import ConnectionError
 from termcolor import colored
 from typing import Awaitable, Callable, List, Optional, Tuple, Union
 

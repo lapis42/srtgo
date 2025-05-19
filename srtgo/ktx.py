@@ -6,10 +6,10 @@
     :license: BSD, see LICENSE for more details.
 """
 import base64
+import curl_cffi
 import itertools
 import json
 import re
-import requests
 import time
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
@@ -314,7 +314,7 @@ class NetFunnelHelper:
     }
 
     def __init__(self):
-        self._session = requests.session()
+        self._session = curl_cffi.Session()
         self._session.headers.update(self.DEFAULT_HEADERS)
         self._cached_key = None
         self._last_fetch_time = 0
@@ -392,7 +392,7 @@ class NetFunnelHelper:
 class Korail:
     """Main Korail API interface"""
     def __init__(self, korail_id, korail_pw, auto_login=True, verbose=False):
-        self._session = requests.session()
+        self._session = curl_cffi.Session()
         self._session.headers.update(DEFAULT_HEADERS)
         self._device = 'AD'
         self._version = '240531001'
@@ -692,7 +692,7 @@ class Korail:
     def pay_with_card(self, rsv, card_number, card_password, birthday, card_expire, installment=0, card_type='J'):
         if not isinstance(rsv, Reservation):
             raise TypeError("rsv must be a Reservation instance")
-
+        
         data = {
             'Device': self._device,
             'Version': self._version,
