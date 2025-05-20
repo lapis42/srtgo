@@ -1129,9 +1129,6 @@ class SRT:
         if not self.is_login:
             raise SRTNotLoggedInError()
         
-        if len(expire_date) == 4:
-            expire_date = '20' + expire_date
-
         data = {
             "stlDmnDt": datetime.now().strftime("%Y%m%d"),
             "mbCrdNo": self.membership_number,
