@@ -496,7 +496,7 @@ class NetFunnelHelper:
     }
 
     def __init__(self, debug=False):
-        self._session = curl_cffi.Session()
+        self._session = curl_cffi.Session(impersonate="chrome131_android")
         self._session.headers.update(self.DEFAULT_HEADERS)
         self._cached_key = None
         self._last_fetch_time = 0
@@ -606,7 +606,7 @@ class SRT:
     def __init__(
         self, srt_id: str, srt_pw: str, auto_login: bool = True, verbose: bool = False
     ) -> None:
-        self._session = curl_cffi.Session()
+        self._session = curl_cffi.Session(impersonate="chrome131_android")
         self._session.headers.update(DEFAULT_HEADERS)
         self._netfunnel = NetFunnelHelper(debug=verbose)
         self.srt_id = srt_id

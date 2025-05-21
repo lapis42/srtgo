@@ -314,7 +314,7 @@ class NetFunnelHelper:
     }
 
     def __init__(self):
-        self._session = curl_cffi.Session()
+        self._session = curl_cffi.Session(impersonate="chrome131_android")
         self._session.headers.update(self.DEFAULT_HEADERS)
         self._cached_key = None
         self._last_fetch_time = 0
@@ -392,7 +392,7 @@ class NetFunnelHelper:
 class Korail:
     """Main Korail API interface"""
     def __init__(self, korail_id, korail_pw, auto_login=True, verbose=False):
-        self._session = curl_cffi.Session()
+        self._session = curl_cffi.Session(impersonate="chrome131_android")
         self._session.headers.update(DEFAULT_HEADERS)
         self._device = 'AD'
         self._version = '240531001'

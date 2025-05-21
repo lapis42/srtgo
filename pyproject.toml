@@ -16,12 +16,12 @@ classifiers = [
 ]
 dependencies = [
     "click",
+    "curl_cffi",
     "inquirer>=3.4",
     "keyring",
     "PyCryptodome",
     "prompt_toolkit>=3",
     "python-telegram-bot",
-    "requests",
     "termcolor"
 ]
 dynamic = ["version"]
