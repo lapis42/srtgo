@@ -78,15 +78,14 @@ class Schedule:
         dep_time = f"{self.dep_time[:2]}:{self.dep_time[2:4]}"
         arr_time = f"{self.arr_time[:2]}:{self.arr_time[2:4]}"
 
-        dep_date = f"{int(self.dep_date[4:6]):02d}월 {int(self.dep_date[6:]):02d}일"
+        dep_date = f"{int(self.dep_date[4:6]):02d}/{int(self.dep_date[6:]):02d}"
 
         train_line = f'[{self.train_type_name[:3]} {self.train_no}]'
 
         return (
             f'{train_line:<11s}'
-            f'{dep_date}, '
-            f'{self.dep_name}~{self.arr_name} '
-            f'({dep_time}~{arr_time}) '
+            f'{dep_date} {dep_time}~{arr_time}  '
+            f'{self.dep_name}~{self.arr_name}'
         )
 
 class Train(Schedule):
@@ -113,7 +112,7 @@ class Train(Schedule):
             duration += 24 * 60
 
         if self.reserve_possible_name:
-            repr_str += f"\t특실 {'가능' if self.has_special_seat() else '매진'}"
+            repr_str += f"  특실 {'가능' if self.has_special_seat() else '매진'}"
             repr_str += f", 일반실 {'가능' if self.has_general_seat() else '매진'}"
             if self.wait_reserve_flag >= 0:
                 repr_str += f", 예약대기 {'가능' if self.has_general_waiting_list() else '매진'}"

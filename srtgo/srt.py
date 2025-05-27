@@ -454,9 +454,9 @@ class SRTTrain(Train):
 
         msg = (
             f"{train_line:<11s}"
-            f"{month}월 {day}일, "
-            f"{self.dep_station_name}~{self.arr_station_name}"
-            f"({dep_hour}:{dep_min}~{arr_hour}:{arr_min}) "
+            f"{month}/{day}"
+            f" {dep_hour}:{dep_min}~{arr_hour}:{arr_min}  "
+            f"{self.dep_station_name}~{self.arr_station_name}  "
             f"특실 {self.special_seat_state}, 일반실 {self.general_seat_state}"
         )
         if self.reserve_wait_possible_code >= 0:
