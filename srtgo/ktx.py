@@ -77,8 +77,17 @@ class Schedule:
     def __repr__(self):
         dep_time = f"{self.dep_time[:2]}:{self.dep_time[2:4]}"
         arr_time = f"{self.arr_time[:2]}:{self.arr_time[2:4]}"
-        dep_date = f"{int(self.dep_date[4:6])}월 {int(self.dep_date[6:])}일"
-        return f'[{self.train_type_name[:3]} {self.train_no}] {dep_date}, {self.dep_name}~{self.arr_name}({dep_time}~{arr_time})'
+
+        dep_date = f"{int(self.dep_date[4:6]):02d}월 {int(self.dep_date[6:]):02d}일"
+
+        train_line = f'[{self.train_type_name[:3]} {self.train_no}]'
+
+        return (
+            f'{train_line:<11s}'
+            f'{dep_date}, '
+            f'{self.dep_name}~{self.arr_name} '
+            f'({dep_time}~{arr_time}) '
+        )
 
 class Train(Schedule):
     """Train schedule with seat availability"""
@@ -94,11 +103,21 @@ class Train(Schedule):
 
     def __repr__(self):
         repr_str = super().__repr__()
+
+        dep_time = f"{self.dep_time[:2]}:{self.dep_time[2:4]}"
+        arr_time = f"{self.arr_time[:2]}:{self.arr_time[2:4]}"
+
+        duration = (int(self.arr_time[:2]) * 60 + int(self.arr_time[2:4])) - (int(self.dep_time[:2]) * 60 + int(self.dep_time[2:4]))
+
+        if duration < 0:
+            duration += 24 * 60
+
         if self.reserve_possible_name:
-            repr_str += f" 특실 {'가능' if self.has_special_seat() else '매진'}"
+            repr_str += f"\t특실 {'가능' if self.has_special_seat() else '매진'}"
             repr_str += f", 일반실 {'가능' if self.has_general_seat() else '매진'}"
             if self.wait_reserve_flag >= 0:
                 repr_str += f", 예약대기 {'가능' if self.has_general_waiting_list() else '매진'}"
+        repr_str += f" ({duration:>3d}분)"
         return repr_str
 
     def has_special_seat(self):

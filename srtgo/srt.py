@@ -444,10 +444,16 @@ class SRTTrain(Train):
     def dump(self):
         dep_hour, dep_min = self.dep_time[0:2], self.dep_time[2:4]
         arr_hour, arr_min = self.arr_time[0:2], self.arr_time[2:4]
+
+        duration = (int(arr_hour) * 60 + int(arr_min)) - (int(dep_hour) * 60 + int(dep_min))
+        if duration < 0:
+            duration += 24 * 60
         month, day = self.dep_date[4:6], self.dep_date[6:8]
 
+        train_line = f"[{self.train_name} {self.train_number}]"
+
         msg = (
-            f"[{self.train_name} {self.train_number}] "
+            f"{train_line:<11s}"
             f"{month}월 {day}일, "
             f"{self.dep_station_name}~{self.arr_station_name}"
             f"({dep_hour}:{dep_min}~{arr_hour}:{arr_min}) "
@@ -455,6 +461,7 @@ class SRTTrain(Train):
         )
         if self.reserve_wait_possible_code >= 0:
             msg += f", 예약대기 {self.reserve_wait_possible_name}"
+        msg += f" ({duration:>3d}분)"
         return msg
 
     def general_seat_available(self):
