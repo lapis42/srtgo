@@ -28,7 +28,7 @@ RESERVE_JOBID = {
 
 STATION_CODE = {
     "수서": "0551",
-    "동탄": "0552", 
+    "동탄": "0552",
     "평택지제": "0553",
     "경주": "0508",
     "곡성": "0049",
@@ -66,7 +66,7 @@ STATION_NAME = {code: name for name, code in STATION_CODE.items()}
 TRAIN_NAME = {
     "00": "KTX",
     "02": "무궁화",
-    "03": "통근열차", 
+    "03": "통근열차",
     "04": "누리로",
     "05": "전체",
     "07": "KTX-산천",
@@ -83,7 +83,7 @@ SRT_MOBILE = "https://app.srail.or.kr:443"
 API_ENDPOINTS = {
     "main": f"{SRT_MOBILE}/main/main.do",
     "login": f"{SRT_MOBILE}/apb/selectListApb01080_n.do",
-    "logout": f"{SRT_MOBILE}/login/loginOut.do", 
+    "logout": f"{SRT_MOBILE}/login/loginOut.do",
     "search_schedule": f"{SRT_MOBILE}/ara/selectListAra10007_n.do",
     "reserve": f"{SRT_MOBILE}/arc/selectListArc05013_n.do",
     "tickets": f"{SRT_MOBILE}/atc/selectListAtc14016_n.do",
@@ -106,17 +106,22 @@ class SRTError(Exception):
     def __str__(self):
         return self.msg
 
+
 class SRTLoginError(SRTError):
     pass
+
 
 class SRTResponseError(SRTError):
     pass
 
+
 class SRTDuplicateError(SRTResponseError):
     pass
 
+
 class SRTNotLoggedInError(SRTError):
     pass
+
 
 class SRTNetFunnelError(SRTError):
     pass
@@ -153,7 +158,9 @@ class Passenger(metaclass=abc.ABCMeta):
         passenger_dict = {}
         for passenger in passengers:
             key = passenger.__class__
-            passenger_dict[key] = passenger_dict.get(key, passenger.__class__(0)) + passenger
+            passenger_dict[key] = (
+                passenger_dict.get(key, passenger.__class__(0)) + passenger
+            )
 
         return [p for p in passenger_dict.values() if p.count > 0]
 
@@ -167,7 +174,7 @@ class Passenger(metaclass=abc.ABCMeta):
     def get_passenger_dict(
         passengers: List["Passenger"],
         special_seat: bool = False,
-        window_seat: str = None
+        window_seat: str = None,
     ) -> Dict[str, str]:
         if not all(isinstance(p, Passenger) for p in passengers):
             raise TypeError("All passengers must be instances of Passenger")
@@ -181,7 +188,7 @@ class Passenger(metaclass=abc.ABCMeta):
             "dirSeatAttCd1": "009",
             "smkSeatAttCd1": "000",
             "etcSeatAttCd1": "000",
-            "psrmClCd1": "2" if special_seat else "1"
+            "psrmClCd1": "2" if special_seat else "1",
         }
 
         for i, passenger in enumerate(combined_passengers, start=1):
@@ -226,20 +233,20 @@ class SRTTicket:
     SEAT_TYPE = {"1": "일반실", "2": "특실"}
 
     PASSENGER_TYPE = {
-        "1": "어른/청소년", 
+        "1": "어른/청소년",
         "2": "장애 1~3급",
         "3": "장애 4~6급",
         "4": "경로",
-        "5": "어린이"
+        "5": "어린이",
     }
 
     DISCOUNT_TYPE = {
         "000": "어른/청소년",
-        "101": "탄력운임기준할인", 
+        "101": "탄력운임기준할인",
         "105": "자유석 할인",
         "106": "입석 할인",
         "107": "역방향석 할인",
-        "108": "출입구석 할인", 
+        "108": "출입구석 할인",
         "109": "가족석 일반전환 할인",
         "111": "구간별 특정운임",
         "112": "열차별 특정운임",
@@ -247,7 +254,7 @@ class SRTTicket:
         "114": "열차별 비율할인(기준)",
         "121": "공항직결 수색연결운임",
         "131": "구간별 특별할인(기준)",
-        "132": "열차별 특별할인(기준)", 
+        "132": "열차별 특별할인(기준)",
         "133": "기본 특별할인(기준)",
         "191": "정차역 할인",
         "192": "매체 할인",
@@ -255,7 +262,7 @@ class SRTTicket:
         "202": "동반유아 할인",
         "204": "경로",
         "205": "1~3급 장애인",
-        "206": "4~6급 장애인"
+        "206": "4~6급 장애인",
     }
 
     def __init__(self, data: dict) -> None:
@@ -264,9 +271,11 @@ class SRTTicket:
         self.seat_type_code = data.get("psrmClCd")
         self.seat_type = self.SEAT_TYPE[self.seat_type_code]
         self.passenger_type_code = data.get("dcntKndCd")
-        self.passenger_type = self.DISCOUNT_TYPE.get(self.passenger_type_code, "기타 할인")
+        self.passenger_type = self.DISCOUNT_TYPE.get(
+            self.passenger_type_code, "기타 할인"
+        )
         self.price = int(data.get("rcvdAmt"))
-        self.original_price = int(data.get("stdrPrc")) 
+        self.original_price = int(data.get("stdrPrc"))
         self.discount = int(data.get("dcntPrc"))
         self.is_waiting = self.seat == ""
 
@@ -334,9 +343,9 @@ class SRTReservation:
                     f", 구입기한 {self.payment_date[4:6]}월 {self.payment_date[6:8]}일 "
                     f"{self.payment_time[:2]}:{self.payment_time[2:4]}"
                 )
-            else:
+            elif not self.is_running:
                 base += ", 예약대기"
-        
+
         if self.is_running:
             base += f" (운행중)"
 
@@ -377,12 +386,12 @@ class SRTResponseData:
         result = self._status.get("strResult")
         if result is None:
             raise SRTResponseError("Response status is not given")
-        
+
         if result == self.STATUS_SUCCESS:
             return True
         if result == self.STATUS_FAIL:
             return False
-        
+
         raise SRTResponseError(f'Undefined result status "{result}"')
 
     def message(self) -> str:
@@ -397,9 +406,9 @@ class SRTResponseData:
 
 class SeatType(Enum):
     GENERAL_FIRST = 1  # 일반실 우선
-    GENERAL_ONLY = 2   # 일반실만 
+    GENERAL_ONLY = 2  # 일반실만
     SPECIAL_FIRST = 3  # 특실 우선
-    SPECIAL_ONLY = 4   # 특실만
+    SPECIAL_ONLY = 4  # 특실만
 
 
 # Train class
@@ -412,7 +421,7 @@ class SRTTrain(Train):
         self.train_code = data["stlbTrnClsfCd"]
         self.train_name = TRAIN_NAME[self.train_code]
         self.train_number = data["trnNo"]
-        
+
         # Departure info
         self.dep_date = data["dptDt"]
         self.dep_time = data["dptTm"]
@@ -421,7 +430,7 @@ class SRTTrain(Train):
         self.dep_station_run_order = data["dptStnRunOrdr"]
         self.dep_station_constitution_order = data["dptStnConsOrdr"]
 
-        # Arrival info  
+        # Arrival info
         self.arr_date = data["arvDt"]
         self.arr_time = data["arvTm"]
         self.arr_station_code = data["arvRsStnCd"]
@@ -433,7 +442,9 @@ class SRTTrain(Train):
         self.general_seat_state = data["gnrmRsvPsbStr"]
         self.special_seat_state = data["sprmRsvPsbStr"]
         self.reserve_wait_possible_name = data["rsvWaitPsbCdNm"]
-        self.reserve_wait_possible_code = int(data["rsvWaitPsbCd"]) # -1: 예약대기 없음, 9: 예약대기 가능, 0: 매진, -2: 예약대기 불가능
+        self.reserve_wait_possible_code = int(
+            data["rsvWaitPsbCd"]
+        )  # -1: 예약대기 없음, 9: 예약대기 가능, 0: 매진, -2: 예약대기 불가능
 
     def __str__(self):
         return self.dump()
@@ -445,7 +456,9 @@ class SRTTrain(Train):
         dep_hour, dep_min = self.dep_time[0:2], self.dep_time[2:4]
         arr_hour, arr_min = self.arr_time[0:2], self.arr_time[2:4]
 
-        duration = (int(arr_hour) * 60 + int(arr_min)) - (int(dep_hour) * 60 + int(dep_min))
+        duration = (int(arr_hour) * 60 + int(arr_min)) - (
+            int(dep_hour) * 60 + int(dep_min)
+        )
         if duration < 0:
             duration += 24 * 60
         month, day = self.dep_date[4:6], self.dep_date[6:8]
@@ -480,12 +493,12 @@ class SRTTrain(Train):
 # NetFunnel
 class NetFunnelHelper:
     WAIT_STATUS_PASS = "200"
-    WAIT_STATUS_FAIL = "201" 
+    WAIT_STATUS_FAIL = "201"
     ALREADY_COMPLETED = "502"
 
     OP_CODE = {
         "getTidchkEnter": "5101",
-        "chkEnter": "5002", 
+        "chkEnter": "5002",
         "setComplete": "5004",
     }
 
@@ -494,7 +507,7 @@ class NetFunnelHelper:
         "Accept": "*/*",
         "Accept-Language": "ko,en;q=0.9,en-US;q=0.8",
         "Cache-Control": "no-cache",
-        "Connection": "keep-alive", 
+        "Connection": "keep-alive",
         "Pragma": "no-cache",
         "Referer": SRT_MOBILE,
         "Sec-Fetch-Dest": "script",
@@ -524,7 +537,7 @@ class NetFunnelHelper:
                 print(f"\r현재 {nwait}명 대기중...", end="", flush=True)
                 time.sleep(1)
                 status, self._cached_key, nwait, ip = self._check(ip)
-            
+
             # Complete the funnel process
             status, *_ = self._complete(ip)
             if status in (self.WAIT_STATUS_PASS, self.ALREADY_COMPLETED):
@@ -557,15 +570,17 @@ class NetFunnelHelper:
         if self.debug:
             print(r.text)
         response = self._parse(r.text)
-        return map(response.get, ('status', 'key', 'nwait', 'ip'))
+        return map(response.get, ("status", "key", "nwait", "ip"))
 
-    def _build_params(self, opcode: str, timestamp: str = None, key: str = None) -> dict:
+    def _build_params(
+        self, opcode: str, timestamp: str = None, key: str = None
+    ) -> dict:
         params = {
             "opcode": opcode,
             "nfid": "0",
             "prefix": f"NetFunnel.gRtype={opcode};",
             "js": "true",
-            str(int(time.time() * 1000) if timestamp is None else timestamp): ""
+            str(int(time.time() * 1000) if timestamp is None else timestamp): "",
         }
 
         if opcode in (self.OP_CODE["getTidchkEnter"], self.OP_CODE["chkEnter"]):
@@ -586,12 +601,17 @@ class NetFunnelHelper:
         if not params_str:
             raise SRTNetFunnelError("Failed to parse NetFunnel response")
 
-        params = dict(param.split("=", 1) for param in params_str.split("&") if "=" in param)
+        params = dict(
+            param.split("=", 1) for param in params_str.split("&") if "=" in param
+        )
         params.update({"code": code, "status": status})
         return params
 
     def _is_cache_valid(self, current_time: float) -> bool:
-        return bool(self._cached_key and (current_time - self._last_fetch_time) < self._cache_ttl)
+        return bool(
+            self._cached_key
+            and (current_time - self._last_fetch_time) < self._cache_ttl
+        )
 
 
 # SRT class
@@ -600,7 +620,7 @@ class SRT:
 
     Args:
         srt_id (str): SRT account ID (membership number, email, or phone)
-        srt_pw (str): SRT account password 
+        srt_pw (str): SRT account password
         auto_login (bool): Whether to automatically login on initialization
         verbose (bool): Whether to print debug logs
 
@@ -649,8 +669,10 @@ class SRT:
         srt_id = srt_id or self.srt_id
         srt_pw = srt_pw or self.srt_pw
 
-        login_type = "2" if EMAIL_REGEX.match(srt_id) else (
-            "3" if PHONE_NUMBER_REGEX.match(srt_id) else "1"
+        login_type = (
+            "2"
+            if EMAIL_REGEX.match(srt_id)
+            else ("3" if PHONE_NUMBER_REGEX.match(srt_id) else "1")
         )
 
         if login_type == "3":
@@ -658,7 +680,7 @@ class SRT:
 
         data = {
             "auto": "Y",
-            "check": "Y", 
+            "check": "Y",
             "page": "menu",
             "deviceKey": "-",
             "customerYn": "",
@@ -684,7 +706,9 @@ class SRT:
         self.membership_name = user_info["CUST_NM"]
         self.phone_number = user_info["MBL_PHONE"]
 
-        print(f"로그인 성공: {self.membership_name} (멤버십번호: {self.membership_number}, 전화번호: {self.phone_number})")
+        print(
+            f"로그인 성공: {self.membership_name} (멤버십번호: {self.membership_number}, 전화번호: {self.phone_number})"
+        )
         return True
 
     def logout(self) -> bool:
@@ -742,12 +766,12 @@ class SRT:
         now = datetime.now()
         today = now.strftime("%Y%m%d")
         date = date or today
-        
+
         if date < today:
             raise ValueError("Date cannot be before today")
-            
+
         time = (
-            max(time or "000000", now.strftime("%H%M%S")) 
+            max(time or "000000", now.strftime("%H%M%S"))
             if date == today
             else time or "000000"
         )
@@ -766,14 +790,14 @@ class SRT:
             "trnGpCd": 109,
             "trnNo": "",
             "psgNum": str(Passenger.total_count(passengers)),
-            "seatAttCd": "015", 
+            "seatAttCd": "015",
             "arriveTime": "N",
             "tkDptDt": "",
             "tkDptTm": "",
             "tkTrnNo": "",
             "tkTripChgFlg": "",
             "dlayTnumAplFlg": "Y",
-            "netfunnelKey": self._netfunnel.run()
+            "netfunnelKey": self._netfunnel.run(),
         }
 
         r = self._session.post(url=API_ENDPOINTS["search_schedule"], data=data)
@@ -784,12 +808,14 @@ class SRT:
             raise SRTResponseError(parser.message())
 
         return [
-            train for train in (
-                SRTTrain(t) for t in parser.get_all()["outDataSets"]["dsOutput1"] 
-                if t["stlbTrnClsfCd"] == '17'
+            train
+            for train in (
+                SRTTrain(t)
+                for t in parser.get_all()["outDataSets"]["dsOutput1"]
+                if t["stlbTrnClsfCd"] == "17"
             )
-            if (not available_only or train.seat_available()) and
-               (not time_limit or train.dep_time <= time_limit)
+            if (not available_only or train.seat_available())
+            and (not time_limit or train.dep_time <= time_limit)
         ]
 
     def reserve(
@@ -815,10 +841,19 @@ class SRT:
             >>> srt.reserve(trains[0])
         """
         if not train.seat_available() and train.reserve_wait_possible_code >= 0:
-            reservation = self.reserve_standby(train, passengers, option=option, mblPhone=self.phone_number)
+            reservation = self.reserve_standby(
+                train, passengers, option=option, mblPhone=self.phone_number
+            )
             if self.phone_number:
-                agree_class_change = option == SeatType.SPECIAL_FIRST or option == SeatType.GENERAL_FIRST
-                self.reserve_standby_option_settings(reservation, isAgreeSMS=True, isAgreeClassChange=agree_class_change, telNo=self.phone_number)
+                agree_class_change = (
+                    option == SeatType.SPECIAL_FIRST or option == SeatType.GENERAL_FIRST
+                )
+                self.reserve_standby_option_settings(
+                    reservation,
+                    isAgreeSMS=True,
+                    isAgreeClassChange=agree_class_change,
+                    telNo=self.phone_number,
+                )
             return reservation
 
         return self._reserve(
@@ -840,7 +875,7 @@ class SRT:
 
         Args:
             train: Train to waitlist
-            passengers: List of passengers (default: 1 adult) 
+            passengers: List of passengers (default: 1 adult)
             option: Seat type preference
             mblPhone: Phone number for notifications
 
@@ -856,11 +891,7 @@ class SRT:
         elif option == SeatType.GENERAL_FIRST:
             option = SeatType.GENERAL_ONLY
         return self._reserve(
-            RESERVE_JOBID["STANDBY"],
-            train,
-            passengers,
-            option,
-            mblPhone=mblPhone
+            RESERVE_JOBID["STANDBY"], train, passengers, option, mblPhone=mblPhone
         )
 
     def _reserve(
@@ -906,7 +937,7 @@ class SRT:
             SeatType.GENERAL_ONLY: False,
             SeatType.SPECIAL_ONLY: True,
             SeatType.GENERAL_FIRST: not train.general_seat_available(),
-            SeatType.SPECIAL_FIRST: train.special_seat_available()
+            SeatType.SPECIAL_FIRST: train.special_seat_available(),
         }[option]
 
         data = {
@@ -934,17 +965,17 @@ class SRT:
             "dptStnRunOrdr1": train.dep_station_run_order,
             "arvStnRunOrdr1": train.arr_station_run_order,
             "mblPhone": mblPhone,
-            "netfunnelKey": self._netfunnel.run()
+            "netfunnelKey": self._netfunnel.run(),
         }
 
         if jobid == RESERVE_JOBID["PERSONAL"]:
             data["reserveType"] = "11"
 
-        data.update(Passenger.get_passenger_dict(
-            passengers, 
-            special_seat=is_special_seat,
-            window_seat=window_seat
-        ))
+        data.update(
+            Passenger.get_passenger_dict(
+                passengers, special_seat=is_special_seat, window_seat=window_seat
+            )
+        )
 
         r = self._session.post(url=API_ENDPOINTS["reserve"], data=data)
         self._log(r.text)
@@ -987,7 +1018,7 @@ class SRT:
         if not self.is_login:
             raise SRTNotLoggedInError()
 
-        reservation_number = getattr(reservation, 'reservation_number', reservation)
+        reservation_number = getattr(reservation, "reservation_number", reservation)
 
         data = {
             "pnrNo": reservation_number,
@@ -1026,8 +1057,7 @@ class SRT:
         return [
             SRTReservation(train, pay, self.ticket_info(train["pnrNo"]))
             for train, pay in zip(
-                parser.get_all()["trainListMap"],
-                parser.get_all()["payListMap"]
+                parser.get_all()["trainListMap"], parser.get_all()["payListMap"]
             )
             if not paid_only or pay["stlFlg"] != "N"
         ]
@@ -1048,11 +1078,11 @@ class SRT:
         if not self.is_login:
             raise SRTNotLoggedInError()
 
-        reservation_number = getattr(reservation, 'reservation_number', reservation)
-        
+        reservation_number = getattr(reservation, "reservation_number", reservation)
+
         r = self._session.post(
             url=API_ENDPOINTS["ticket_info"],
-            data={"pnrNo": reservation_number, "jrnySqno": "1"}
+            data={"pnrNo": reservation_number, "jrnySqno": "1"},
         )
         self._log(r.text)
         parser = SRTResponseData(r.text)
@@ -1084,13 +1114,9 @@ class SRT:
         if not self.is_login:
             raise SRTNotLoggedInError()
 
-        reservation_number = getattr(reservation, 'reservation_number', reservation)
+        reservation_number = getattr(reservation, "reservation_number", reservation)
 
-        data = {
-            "pnrNo": reservation_number,
-            "jrnyCnt": "1",
-            "rsvChgTno": "0"
-        }
+        data = {"pnrNo": reservation_number, "jrnyCnt": "1", "rsvChgTno": "0"}
 
         r = self._session.post(url=API_ENDPOINTS["cancel"], data=data)
         self._log(r.text)
@@ -1135,7 +1161,7 @@ class SRT:
         """
         if not self.is_login:
             raise SRTNotLoggedInError()
-        
+
         data = {
             "stlDmnDt": datetime.now().strftime("%Y%m%d"),
             "mbCrdNo": self.membership_number,
@@ -1178,7 +1204,7 @@ class SRT:
             raise SRTResponseError(response["outDataSets"]["dsOutput0"][0]["msgTxt"])
 
         return True
-    
+
     def reserve_info(self, reservation: SRTReservation | int) -> bool:
         referer = API_ENDPOINTS["reserve_info_referer"] + reservation.reservation_number
         self._session.headers.update({"Referer": referer})
@@ -1189,9 +1215,10 @@ class SRT:
             return response.get("outDataSets").get("dsOutput1")[0]
         else:
             raise SRTResponseError(response.get("ErrorMsg"))
-    
+
     def refund(self, reservation: SRTReservation | int) -> bool:
         info = self.reserve_info(reservation)
+        print(info)
         data = {
             "pnr_no": info.get("pnrNo"),
             "cnc_dmn_cont": "승차권 환불로 취소",
@@ -1201,6 +1228,9 @@ class SRT:
             "tkRetPwd": info.get("ogtkRetPwd"),
             "psgNm": info.get("buyPsNm"),
         }
+        print(info.get("pnrNo"))
+
+        print(data)
 
         r = self._session.post(url=API_ENDPOINTS["refund"], data=data)
         self._log(r.text)
@@ -1210,7 +1240,7 @@ class SRT:
             raise SRTResponseError(response.message())
 
         return True
-    
+
     def clear(self):
         self._log("Clearing the netfunnel key")
         self._netfunnel.clear()
