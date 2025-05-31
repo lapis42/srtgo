@@ -208,6 +208,32 @@ class Reservation(Train):
         return repr_str
 
 
+class Seat:
+    """Train seat information"""
+
+    def __init__(self, data: dict):
+        self.car = data.get("h_srcar_no")
+        self.seat = data.get("h_seat_no")
+        self.seat_type = data.get("h_psrm_cl_nm")
+        self.passenger_type = data.get("h_psg_tp_dv_nm")
+        self.price = int(data.get("h_rcvd_amt", 0))
+        self.original_price = int(data.get("h_seat_prc", 0))
+        self.discount = int(data.get("h_dcnt_amt", 0))
+        self.is_waiting = self.seat == ""
+
+    def __repr__(self):
+        if self.is_waiting:
+            return (
+                f"예약대기 ({self.seat_type}) {self.passenger_type}"
+                f"[{self.price}원({self.discount}원 할인)]"
+            )
+        else:
+            return (
+                f"{self.car}호차 {self.seat} ({self.seat_type}) {self.passenger_type} "
+                f"[{self.price}원({self.discount}원 할인)]"
+            )
+
+
 # Passenger classes
 class Passenger:
     """Base class for passengers"""
@@ -795,6 +821,9 @@ class Korail:
                 train_info = info.get("train_infos", {}).get("train_info", [])
                 for tinfo in train_info:
                     reservation = Reservation(tinfo)
+                    reservation.tickets, reservation.wct_no = self.ticket_info(
+                        reservation.rsv_id
+                    )
                     if rsv_id and reservation.rsv_id == rsv_id:
                         return reservation
                     reserves.append(reservation)
@@ -803,7 +832,7 @@ class Korail:
         except NoResultsError:
             return []
 
-    def get_wct(self, rsv_id=None):
+    def ticket_info(self, rsv_id=None):
         data = {
             "Device": self._device,
             "Version": self._version,
@@ -817,7 +846,10 @@ class Korail:
             if not self._result_check(j):
                 return []
 
-            return j.get("h_wct_no")
+            wct_no = j.get("h_wct_no")
+            if jrny_info := j.get("jrny_infos", {}).get("jrny_info", []):
+                if seat_info := jrny_info[0].get("seat_infos", {}).get("seat_info", []):
+                    return [Seat(seat) for seat in seat_info], wct_no
 
         except NoResultsError:
             return None
@@ -835,14 +867,12 @@ class Korail:
         if not isinstance(rsv, Reservation):
             raise TypeError("rsv must be a Reservation instance")
 
-        wct_no = self.get_wct(rsv.rsv_id)
-
         data = {
             "Device": self._device,
             "Version": self._version,
             "Key": self._key,
             "hidPnrNo": rsv.rsv_id,
-            "hidWctNo": wct_no,
+            "hidWctNo": rsv.wct_no,
             "hidTmpJobSqno1": "000000",
             "hidTmpJobSqno2": "000000",
             "hidRsvChgNo": "000",

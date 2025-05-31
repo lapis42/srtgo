@@ -1218,7 +1218,6 @@ class SRT:
 
     def refund(self, reservation: SRTReservation | int) -> bool:
         info = self.reserve_info(reservation)
-        print(info)
         data = {
             "pnr_no": info.get("pnrNo"),
             "cnc_dmn_cont": "승차권 환불로 취소",
@@ -1228,9 +1227,6 @@ class SRT:
             "tkRetPwd": info.get("ogtkRetPwd"),
             "psgNm": info.get("buyPsNm"),
         }
-        print(info.get("pnrNo"))
-
-        print(data)
 
         r = self._session.post(url=API_ENDPOINTS["refund"], data=data)
         self._log(r.text)

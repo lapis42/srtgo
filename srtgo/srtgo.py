@@ -668,11 +668,9 @@ def reserve(rail_type="SRT", debug=False):
     # Reserve function
     def _reserve(train):
         reserve = rail.reserve(train, passengers=passengers, option=options["type"])
-        msg = (
-            (f"{reserve}\n" + "\n".join(str(ticket) for ticket in reserve.tickets))
-            if is_srt
-            else str(reserve).strip()
-        )
+        msg = f"{reserve}"
+        if hasattr(reserve, "tickets") and reserve.tickets:
+            msg += "\n" + "\n".join(map(str, reserve.tickets))
 
         print(colored(f"\n\n🎫 🎉 예매 성공!!! 🎉 🎫\n{msg}\n", "red", "on_green"))
 
