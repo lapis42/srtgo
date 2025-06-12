@@ -773,10 +773,6 @@ def reserve(rail_type="SRT", debug=False):
         except (SRTNetFunnelError, KTXNetFunnelError) as ex:
             # NetFunnel 자동 재시도 설정이 켜져있을 때만 처리
             if get_netfunnel_auto_retry():
-                if debug:
-                    print(
-                        f"\nException: {ex}\nType: {type(ex)}\nMessage: {ex.msg if hasattr(ex, 'msg') else str(ex)}"
-                    )
                 print("\n대기열 연결 시간 초과. 자동 재시도 중...")
                 _sleep()
                 rail = login(rail_type, debug=debug)
