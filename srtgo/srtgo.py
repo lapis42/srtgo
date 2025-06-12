@@ -16,6 +16,7 @@ import re
 from .ktx import (
     Korail,
     KorailError,
+    NetFunnelError as KTXNetFunnelError,
     ReserveOption,
     TrainType,
     AdultPassenger,
@@ -28,6 +29,7 @@ from .ktx import (
 from .srt import (
     SRT,
     SRTError,
+    SRTNetFunnelError,
     SeatType,
     Adult,
     Child,
@@ -135,6 +137,7 @@ def srtgo(debug=False):
         ("역 설정", 6),
         ("역 직접 수정", 7),
         ("예매 옵션 설정", 8),
+        ("기타 설정", 9),
         ("나가기", -1),
     ]
 
@@ -153,6 +156,7 @@ def srtgo(debug=False):
         6: lambda rt: set_station(rt),
         7: lambda rt: edit_station(rt),
         8: lambda _: set_options(),
+        9: lambda _: set_misc_options(),
     }
 
     while True:
@@ -281,6 +285,38 @@ def set_options():
 def get_options():
     options = keyring.get_password("SRT", "options") or ""
     return options.split(",") if options else []
+
+
+def set_misc_options():
+    """기타 설정 관리 함수"""
+    current_netfunnel_retry = keyring.get_password("SRT", "netfunnel_auto_retry") == "1"
+    
+    choices = inquirer.prompt(
+        [
+            inquirer.Confirm(
+                "netfunnel_auto_retry",
+                message="NetFunnelError 발생 시 자동 재시도",
+                default=current_netfunnel_retry,
+            )
+        ]
+    )
+    
+    if choices is None:
+        return
+    
+    # NetFunnel 자동 재시도 설정 저장
+    keyring.set_password(
+        "SRT", 
+        "netfunnel_auto_retry", 
+        "1" if choices["netfunnel_auto_retry"] else "0"
+    )
+    
+    print(f"NetFunnelError 자동 재시도: {'활성화' if choices['netfunnel_auto_retry'] else '비활성화'}")
+
+
+def get_netfunnel_auto_retry():
+    """NetFunnel 자동 재시도 설정 확인"""
+    return keyring.get_password("SRT", "netfunnel_auto_retry") == "1"
 
 
 def set_telegram() -> bool:
@@ -733,6 +769,20 @@ def reserve(rail_type="SRT", debug=False):
                 if not _handle_error(ex):
                     return
             _sleep()
+
+        except (SRTNetFunnelError, KTXNetFunnelError) as ex:
+            # NetFunnel 자동 재시도 설정이 켜져있을 때만 처리
+            if get_netfunnel_auto_retry():
+                if debug:
+                    print(
+                        f"\nException: {ex}\nType: {type(ex)}\nMessage: {ex.msg if hasattr(ex, 'msg') else str(ex)}"
+                    )
+                print("\n대기열 연결 시간 초과. 자동 재시도 중...")
+                _sleep()
+                rail = login(rail_type, debug=debug)
+            else:
+                # 자동 재시도가 꺼져있으면 다시 raise하여 일반 Exception 핸들러에서 처리
+                raise
 
         except KorailError as ex:
             if not any(
