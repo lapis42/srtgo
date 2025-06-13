@@ -16,7 +16,6 @@ import re
 from .ktx import (
     Korail,
     KorailError,
-    NetFunnelError as KTXNetFunnelError,
     ReserveOption,
     TrainType,
     AdultPassenger,
@@ -285,38 +284,6 @@ def set_options():
 def get_options():
     options = keyring.get_password("SRT", "options") or ""
     return options.split(",") if options else []
-
-
-def set_misc_options():
-    """기타 설정 관리 함수"""
-    current_netfunnel_retry = keyring.get_password("SRT", "netfunnel_auto_retry") == "1"
-
-    choices = inquirer.prompt(
-        [
-            inquirer.Confirm(
-                "netfunnel_auto_retry",
-                message="NetFunnelError 발생 시 자동 재시도",
-                default=current_netfunnel_retry,
-            )
-        ]
-    )
-
-    if choices is None:
-        return
-
-    # NetFunnel 자동 재시도 설정 저장
-    keyring.set_password(
-        "SRT", "netfunnel_auto_retry", "1" if choices["netfunnel_auto_retry"] else "0"
-    )
-
-    print(
-        f"NetFunnelError 자동 재시도: {'활성화' if choices['netfunnel_auto_retry'] else '비활성화'}"
-    )
-
-
-def get_netfunnel_auto_retry():
-    """NetFunnel 자동 재시도 설정 확인"""
-    return keyring.get_password("SRT", "netfunnel_auto_retry") == "1"
 
 
 def set_telegram() -> bool:
@@ -741,19 +708,11 @@ def reserve(rail_type="SRT", debug=False):
                     return
             _sleep()
 
-        except (SRTNetFunnelError, KTXNetFunnelError) as ex:
-            # NetFunnel 자동 재시도 설정이 켜져있을 때만 처리
-            if get_netfunnel_auto_retry():
-                print("\n대기열 연결 시간 초과. 자동 재시도 중...")
-                _sleep()
-                rail = login(rail_type, debug=debug)
-            else:
-                # 자동 재시도가 꺼져있으면 다시 raise하여 일반 Exception 핸들러에서 처리
-                raise ex
-
         except SRTError as ex:
             msg = ex.msg
-            if "정상적인 경로로 접근 부탁드립니다" in msg:
+            if "정상적인 경로로 접근 부탁드립니다" in msg or isinstance(
+                ex, SRTNetFunnelError
+            ):
                 if debug:
                     print(
                         f"\nException: {ex}\nType: {type(ex)}\nArgs: {ex.args}\nMessage: {msg}"
