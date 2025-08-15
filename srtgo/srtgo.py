@@ -1,4 +1,8 @@
-from curl_cffi.requests.exceptions import ConnectionError
+try:
+    from curl_cffi.requests.exceptions import ConnectionError
+except ImportError:
+    from requests.exceptions import ConnectionError
+
 from datetime import datetime, timedelta
 from json.decoder import JSONDecodeError
 from random import gammavariate

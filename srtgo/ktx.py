@@ -7,7 +7,12 @@ korail2.korail2
 """
 
 import base64
-import curl_cffi
+try:
+    import curl_cffi
+    HAS_CURL_CFFI = True
+except ImportError:
+    import requests
+    HAS_CURL_CFFI = False
 import itertools
 import json
 import re
@@ -415,7 +420,10 @@ class NetFunnelHelper:
     }
 
     def __init__(self):
-        self._session = curl_cffi.Session(impersonate="chrome131_android")
+        if HAS_CURL_CFFI:
+            self._session = curl_cffi.Session(impersonate="chrome131_android")
+        else:
+            self._session = requests.session()
         self._session.headers.update(self.DEFAULT_HEADERS)
         self._cached_key = None
         self._last_fetch_time = 0
@@ -501,7 +509,10 @@ class Korail:
     """Main Korail API interface"""
 
     def __init__(self, korail_id, korail_pw, auto_login=True, verbose=False):
-        self._session = curl_cffi.Session(impersonate="chrome131_android")
+        if HAS_CURL_CFFI:
+            self._session = curl_cffi.Session(impersonate="chrome131_android")
+        else:
+            self._session = requests.session()
         self._session.headers.update(DEFAULT_HEADERS)
         self._device = "AD"
         self._version = "240531001"

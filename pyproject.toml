@@ -17,6 +17,7 @@ classifiers = [
 dependencies = [
     "click",
     "curl_cffi",
+    "requests",
     "inquirer>=3.4",
     "keyring",
     "PyCryptodome",
