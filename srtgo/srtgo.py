@@ -140,7 +140,6 @@ def srtgo(debug=False):
         ("역 설정", 6),
         ("역 직접 수정", 7),
         ("예매 옵션 설정", 8),
-        ("기타 설정", 9),
         ("나가기", -1),
     ]
 
@@ -159,7 +158,6 @@ def srtgo(debug=False):
         6: lambda rt: set_station(rt),
         7: lambda rt: edit_station(rt),
         8: lambda _: set_options(),
-        9: lambda _: set_misc_options(),
     }
 
     while True:
