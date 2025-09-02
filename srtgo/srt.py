@@ -580,7 +580,6 @@ class NetFunnelHelper:
         return self._make_request("setComplete", ip)
 
     def _make_request(self, opcode: str, ip: str | None = None):
-        import certifi
         url = f"https://{ip or 'nf.letskorail.com'}/ts.wseq"
         params = self._build_params(self.OP_CODE[opcode])
         r = self._session.get(url, params=params, verify=False)
