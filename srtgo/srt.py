@@ -18,8 +18,8 @@ EMAIL_REGEX: Pattern = re.compile(r"[^@]+@[^@]+\.[^@]+")
 PHONE_NUMBER_REGEX: Pattern = re.compile(r"(\d{3})-(\d{3,4})-(\d{4})")
 
 USER_AGENT = (
-    "Mozilla/5.0 (Linux; Android 14; SM-S912N Build/UP1A.231005.007; wv) AppleWebKit/537.36"
-    "(KHTML, like Gecko) Version/4.0 Chrome/131.0.6778.260 Mobile Safari/537.36SRT-APP-Android V.2.0.33"
+    "Mozilla/5.0 (Linux; Android 15; SM-S912N Build/AP3A.240905.015.A2; wv) AppleWebKit/537.36"
+    "(KHTML, like Gecko) Version/4.0 Chrome/136.0.7103.125 Mobile Safari/537.36SRT-APP-Android V.2.0.38"
 )
 
 DEFAULT_HEADERS: Dict[str, str] = {
@@ -509,21 +509,28 @@ class NetFunnelHelper:
     }
 
     DEFAULT_HEADERS = {
-        "User-Agent": USER_AGENT,
-        "Accept": "*/*",
-        "Accept-Language": "ko,en;q=0.9,en-US;q=0.8",
-        "Cache-Control": "no-cache",
+        "Host": "nf.letskorail.com",
         "Connection": "keep-alive",
         "Pragma": "no-cache",
-        "Referer": SRT_MOBILE,
-        "Sec-Fetch-Dest": "script",
-        "Sec-Fetch-Mode": "no-cors",
+        "Cache-Control": "no-cache",
+        "sec-ch-ua-platform": "Android",
+        "User-Agent": USER_AGENT,
+        "sec-ch-ua": '"Chromium";v="136", "Android WebView";v="136", "Not=A/Brand";v="99"',
+        "sec-ch-ua-mobile": "?1",
+        "Accept": "*/*",
+        "X-Requested-With": "kr.co.srail.newapp",
         "Sec-Fetch-Site": "cross-site",
+        "Sec-Fetch-Mode": "no-cors",
+        "Sec-Fetch-Dest": "script",
+        "Sec-Fetch-Storage-Access": "active",
+        "Referer": "https://app.srail.or.kr/",
+        "Accept-Encoding": "gzip, deflate, br, zstd",
+        "Accept-Language": "en-US,en;q=0.9,ko-KR;q=0.8,ko;q=0.7",
     }
 
     def __init__(self, debug=False):
         if HAS_CURL_CFFI:
-            self._session = curl_cffi.Session(impersonate="chrome131_android")
+            self._session = curl_cffi.Session(impersonate="chrome")
         else:
             self._session = requests.session()
         self._session.headers.update(self.DEFAULT_HEADERS)
@@ -573,9 +580,10 @@ class NetFunnelHelper:
         return self._make_request("setComplete", ip)
 
     def _make_request(self, opcode: str, ip: str | None = None):
+        import certifi
         url = f"https://{ip or 'nf.letskorail.com'}/ts.wseq"
         params = self._build_params(self.OP_CODE[opcode])
-        r = self._session.get(url, params=params)
+        r = self._session.get(url, params=params, verify=False)
         if self.debug:
             print(r.text)
         response = self._parse(r.text)
@@ -643,7 +651,7 @@ class SRT:
         self, srt_id: str, srt_pw: str, auto_login: bool = True, verbose: bool = False
     ) -> None:
         if HAS_CURL_CFFI:
-            self._session = curl_cffi.Session(impersonate="chrome131_android")
+            self._session = curl_cffi.Session(impersonate="chrome")
         else:
             self._session = requests.session()
         self._session.headers.update(DEFAULT_HEADERS)
