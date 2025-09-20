@@ -111,10 +111,27 @@ STATIONS = {
         "행신",
         "정동진",
     ],
+    "ITX-청춘": [
+        "용산",
+        "옥수",
+        "왕십리",
+        "청량리",
+        "상봉",
+        "퇴계원",
+        "사릉",
+        "평내호평",
+        "마석",
+        "청평",
+        "가평",
+        "강촌",
+        "남춘천",
+        "춘천",
+    ],
 }
 DEFAULT_STATIONS = {
     "SRT": ["수서", "대전", "동대구", "부산"],
     "KTX": ["서울", "대전", "동대구", "부산"],
+    "ITX-청춘": ["용산", "청량리", "가평", "춘천"],
 }
 
 # 예약 간격 (평균 간격 (초) = SHAPE * SCALE): gamma distribution (1.25 +/- 0.25 s)
@@ -146,6 +163,7 @@ def srtgo(debug=False):
     RAIL_CHOICES = [
         (colored("SRT", "red"), "SRT"),
         (colored("KTX", "cyan"), "KTX"),
+        (colored("ITX-청춘", "green"), "ITX-청춘"),
         ("취소", -1),
     ]
 
@@ -447,6 +465,7 @@ def login(rail_type="SRT", debug=False):
 def reserve(rail_type="SRT", debug=False):
     rail = login(rail_type, debug=debug)
     is_srt = rail_type == "SRT"
+    is_korail = rail_type in ["KTX", "ITX-청춘"]
 
     # Get date, time, stations, and passenger info
     now = datetime.now() + timedelta(minutes=10)
