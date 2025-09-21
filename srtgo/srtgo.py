@@ -480,13 +480,25 @@ def reserve(rail_type="SRT", debug=False):
     stations, station_key = get_station(rail_type)
     options = get_options()
 
-    # Generate date and time choices
+    # Calculate dynamic booking window (SRT: D-30, KTX: D-31; both open at 07:00)
+    current = datetime.now()
+    if is_srt:
+        max_days = 30 if current.hour >= 7 else 29
+    else:
+        max_days = 31 if current.hour >= 7 else 30
+    last_bookable_date = (current + timedelta(days=max_days)).date()
+    base_date = now.date()
+    max_i = (last_bookable_date - base_date).days
+    if max_i < 0:
+        max_i = 0
+
+    # Generate date choices within the window (0 ~ max_i, inclusive)
     date_choices = [
         (
-            (now + timedelta(days=i)).strftime("%Y/%m/%d %a"),
-            (now + timedelta(days=i)).strftime("%Y%m%d"),
+            (base_date + timedelta(days=i)).strftime("%Y/%m/%d %a"),
+            (base_date + timedelta(days=i)).strftime("%Y%m%d"),
         )
-        for i in range(28)
+        for i in range(max_i + 1)
     ]
     time_choices = [(f"{h:02d}", f"{h:02d}0000") for h in range(24)]
 
